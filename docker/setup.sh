@@ -4,7 +4,8 @@
 #   /config/keeper-asset   the indexer's protocol fee keeper asset
 # Collateral is WBTC (the chain's fee asset); the principal asset (USDT) is issued by the user in
 # the Wharfedale web app, and its ticker and decimals are read from the chain.
-# Runs in the node image (wharfedale-wallet).
+# Installed in the indexer image as `lending-setup` (needs bash and curl); runs as root to write
+# the shared /config volume.
 set -euo pipefail
 
 RPC=${RPC:-http://rpc0:18443}
@@ -28,12 +29,16 @@ if ! hex64 "$keeper"; then
   exit 1
 fi
 
+chain_info() {
+  curl -sf -X POST -H 'Content-Type: application/json' \
+    -d '{"method":"getblockchaininfo","params":[],"id":1}' "$RPC"
+}
 echo "lending setup: waiting for $RPC"
-until wharfedale-wallet rpc --rpc "$RPC" getblockchaininfo >/dev/null 2>&1; do sleep 1; done
-fee_asset=$(wharfedale-wallet rpc --rpc "$RPC" getblockchaininfo | grep -o '"fee_asset": *"[0-9a-f]\{64\}"' | grep -o '[0-9a-f]\{64\}')
+until info=$(chain_info); do sleep 1; done
+fee_asset=$(printf '%s' "$info" | grep -o '"fee_asset": *"[0-9a-f]\{64\}"' | grep -o '[0-9a-f]\{64\}')
 
 # The principal's on-chain name (WFA1, set by the web app's Assets page).
-if ! record=$(wharfedale-wallet rest --rpc "$RPC" "asset/$PRINCIPAL_ASSET" 2>/dev/null); then
+if ! record=$(curl -sf "$RPC/asset/$PRINCIPAL_ASSET"); then
   echo "lending setup: $PRINCIPAL_ASSET is not an issued asset on this chain" >&2
   exit 1
 fi

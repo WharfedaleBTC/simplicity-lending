@@ -76,6 +76,10 @@ the wallet that issued it.
 
 `make stop` keeps the indexer's database; `make clear` deletes it.
 
+CI publishes the images `ghcr.io/wharfedalebtc/lending-indexer` (the indexer, the API, the
+database migrations and the config job `lending-setup`) and `ghcr.io/wharfedalebtc/lending-web`;
+the demo deployment ([demo-prod](https://github.com/WharfedaleBTC/demo-prod)) runs them.
+
 ## Tests
 
 ```bash

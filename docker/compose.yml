@@ -6,14 +6,15 @@
 name: lending
 
 services:
-  # Writes /config (the web app's and the indexer's assets) from lending.env.
+  # Writes /config (the web app's and the indexer's assets) from lending.env (docker/setup.sh,
+  # installed in the indexer image).
   setup:
-    image: wharfedale:dev
-    command: [bash, /setup.sh]
+    image: lending-indexer:dev
+    command: [lending-setup]
+    user: root
     env_file: lending.env
     volumes:
       - config:/config
-      - ./setup.sh:/setup.sh:ro
     environment:
       RPC: http://rpc0:18443
     networks: [default, wharfedale]
@@ -33,11 +34,8 @@ services:
       retries: 30
 
   migrate:
-    image: lending-migrate:dev
-    build:
-      context: ../..
-      dockerfile: simplicity-lending/docker/indexer.Dockerfile
-      target: migrate
+    image: lending-indexer:dev
+    command: [sqlx, migrate, run, --source, /migrations]
     environment:
       DATABASE_URL: postgres://postgres:password@postgres:5432/lending-indexer
     depends_on:

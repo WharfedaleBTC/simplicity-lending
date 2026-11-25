@@ -1,16 +1,25 @@
-# Tests the lending workspace and the web app; on master and on version tags publishes the
-# images ghcr.io/wharfedalebtc/lending-indexer and ghcr.io/wharfedalebtc/lending-web.
+# Tests the lending workspace and the web app; on main and on version tags publishes the images
+# ghcr.io/wharfedalebtc/lending-indexer and ghcr.io/wharfedalebtc/lending-web (linux/amd64 +
+# linux/arm64), which the demo deployment (WharfedaleBTC/demo-prod) runs.
+#
+#   push to main     → image tags `latest` and `sha-<short>`
+#   push tag vX.Y.Z  → image tags `X.Y.Z`, `X.Y` and `sha-<short>`
+#   pull request     → tests only
+#
+# The tests are unit, contract (in-process chain) and indexer tests; the end-to-end test
+# (crates/e2e, `make e2e`) needs a running network and is not run here.
 #
 # The workspace builds against sibling checkouts, laid out as locally:
 #   wharfedale/          WharfedaleBTC/wharfedale at WHARFEDALE_REF (the node: its ledger crate
 #                        validates the contract tests' transactions)
 #   wharfedale-sdk-rs/   WharfedaleBTC/wharfedale-sdk-rs at SDK_RS_REF
 #   malachite/           WharfedaleBTC/malachite at MALACHITE_REF (the node workspace's fork)
+# All are public: no token needed.
 name: ci
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -27,6 +36,7 @@ env:
   SDK_RS_REF: master
   MALACHITE_REF: wharfedale/mempool-channel
   SQLX_OFFLINE: "true"
+  REGISTRY: ghcr.io/wharfedalebtc
 
 jobs:
   rust:
@@ -104,18 +114,22 @@ jobs:
           pnpm format:check
           pnpm build
 
-  images:
+  # One native build per image and architecture, pushed by digest; `publish` joins each image's
+  # builds under its tags.
+  image:
     if: github.event_name != 'pull_request'
     needs: [rust, web]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     strategy:
       matrix:
         include:
-          - { name: lending-indexer, file: simplicity-lending/docker/indexer.Dockerfile }
-          - { name: lending-web, file: simplicity-lending/docker/web.Dockerfile }
+          - { name: lending-indexer, file: indexer.Dockerfile, platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
+          - { name: lending-indexer, file: indexer.Dockerfile, platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
+          - { name: lending-web, file: web.Dockerfile, platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
+          - { name: lending-web, file: web.Dockerfile, platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { path: simplicity-lending, persist-credentials: false }
@@ -125,7 +139,7 @@ jobs:
         with: { repository: WharfedaleBTC/wharfedale-sdk-rs, ref: "${{ env.SDK_RS_REF }}", path: wharfedale-sdk-rs, persist-credentials: false }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { repository: WharfedaleBTC/malachite, ref: "${{ env.MALACHITE_REF }}", path: malachite, persist-credentials: false }
-      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -135,19 +149,64 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/wharfedalebtc/${{ matrix.name }}
+          images: ${{ env.REGISTRY }}/${{ matrix.name }}
+
+      - id: build
+        name: Build and push by digest
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: simplicity-lending/docker/${{ matrix.file }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ matrix.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.name }}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.name }}-${{ matrix.arch }},mode=max
+
+      - name: Record the digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          digest='${{ steps.build.outputs.digest }}'
+          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.name }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          retention-days: 1
+
+  publish:
+    needs: image
+    strategy:
+      matrix:
+        name: [lending-indexer, lending-web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-${{ matrix.name }}-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.name }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: ${{ matrix.file }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+      - name: Tag the multi-arch image
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ matrix.name }}@sha256:%s ' *)
+          docker buildx imagetools inspect '${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.meta.outputs.version }}'

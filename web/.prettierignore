@@ -2,3 +2,4 @@ dist
 node_modules
 *.min.js
 src/wasm/pkg
+pnpm-lock.yaml
