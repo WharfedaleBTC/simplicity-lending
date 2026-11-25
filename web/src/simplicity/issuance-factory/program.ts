@@ -1,13 +1,13 @@
+import { sources } from 'virtual:simplicity-sources'
+
+import type { Uint8, Uint32, Uint64 } from '@/utils/uint'
 import {
   SimplicityArguments,
   SimplicityProgram,
   SimplicityType,
   SimplicityTypedValue,
   SimplicityWitnessValues,
-} from 'lwk_wasm'
-import { sources } from 'virtual:simplicity-sources'
-
-import type { Uint8, Uint32, Uint64 } from '@/utils/uint'
+} from '@/wharfedale/simplicity'
 
 const ARGUMENTS = {
   ISSUING_UTXOS_COUNT: 'ISSUING_UTXOS_COUNT',

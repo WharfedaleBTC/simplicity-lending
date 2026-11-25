@@ -1,15 +1,15 @@
-use simplex::simplicityhl::elements::{AssetId, Script, Transaction, Txid};
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{
+use lending_sdk::elements::{AssetId, Script, Transaction, Txid};
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{
     FinalTransaction, IssuanceDetails, PartialOutput, RequiredSignature, UTXO,
 };
-use simplex::{program::Program, provider::SimplicityNetwork};
+use lending_sdk::{Network, program::Program};
 
 use crate::artifacts::issuance_factory::IssuanceFactoryProgram;
 use crate::programs::issuance_factory::{
     IssuanceFactoryError, IssuanceFactoryParameters, IssuanceFactoryWitnessBranch,
 };
-use crate::programs::program::{MetadataProgram, SimplexProgram};
+use crate::programs::program::{MetadataProgram, SimplicityProgram};
 use crate::utils::op_return_payload;
 
 const CREATION_METADATA_OUTPUT_INDEX: usize = 2;
@@ -29,7 +29,7 @@ impl IssuanceFactory {
 
     pub fn try_from_tx(
         tx: &Transaction,
-        network: SimplicityNetwork,
+        network: Network,
     ) -> Result<(Self, AssetId), IssuanceFactoryError> {
         let txid = tx.txid();
 
@@ -186,7 +186,7 @@ impl IssuanceFactory {
     }
 }
 
-impl SimplexProgram for IssuanceFactory {
+impl SimplicityProgram for IssuanceFactory {
     fn get_program_source_code() -> &'static str {
         IssuanceFactoryProgram::SOURCE
     }
@@ -195,7 +195,7 @@ impl SimplexProgram for IssuanceFactory {
         self.program.as_ref()
     }
 
-    fn get_network(&self) -> &SimplicityNetwork {
+    fn get_network(&self) -> &Network {
         &self.parameters.network
     }
 }

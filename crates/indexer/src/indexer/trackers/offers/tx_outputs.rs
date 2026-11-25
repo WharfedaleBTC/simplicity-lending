@@ -1,5 +1,5 @@
 use lending_contracts::programs::lending::LendingOfferParameters;
-use simplex::simplicityhl::elements::{AssetId, Script, Transaction, TxOut};
+use lending_sdk::elements::{AssetId, Script, Transaction, TxOut};
 
 #[derive(Debug, Clone)]
 pub struct OfferCreationOutputs {

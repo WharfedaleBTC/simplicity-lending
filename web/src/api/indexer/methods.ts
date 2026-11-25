@@ -36,7 +36,7 @@ export type SortField =
   | 'collateral_amount'
   | 'principal_amount'
   | 'interest_rate'
-  | 'loan_expiration_height'
+  | 'loan_expiration_time'
 
 export interface ListOffersParams {
   status?: OfferStatus | OfferStatus[]

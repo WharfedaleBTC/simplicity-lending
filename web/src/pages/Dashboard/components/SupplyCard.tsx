@@ -2,7 +2,7 @@ import { Skeleton } from '@heroui/react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useChainTime } from '@/api/esplora/hooks'
 import { useAllLenderOffers } from '@/api/indexer/hooks'
 import { useAssetPriceUsd } from '@/api/prices/hooks'
 import ArrowSquareUpIcon from '@/components/icons/ArrowSquareUpIcon'
@@ -33,13 +33,13 @@ export function SupplyCard() {
   const principalPriceUsd = useAssetPriceUsd(NETWORK_CONFIG.principalAsset.id)
   const balanceUsd = formatUsd(balance, NETWORK_CONFIG.principalAsset.decimals, principalPriceUsd)
   const { pendingTxs } = usePendingTransactions()
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
   const offersQuery = useAllLenderOffers(scriptPubkey ?? '', { status: ['active', 'repaid'] })
 
   const notifications = buildOfferNotifications(
     offersQuery.data ?? [],
     scriptPubkey,
-    currentBlockHeight,
+    currentTime,
   ).filter(n => !getOfferPendingTx(n.offer.id, pendingTxs))
 
   useEffect(() => {

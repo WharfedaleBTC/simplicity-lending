@@ -9,9 +9,10 @@ use lending_indexer::models::{
     FactoryModel, FactoryStatus, OfferModel, OfferParticipantModel, OfferStatus, OfferUtxoModel,
     ParticipantType, UtxoType,
 };
-use simplex::simplicityhl::elements::{
-    AssetId, LockTime, OutPoint, Script, Transaction, TxIn, TxOut, Txid, confidential, hashes::Hash,
+use lending_sdk::elements::{
+    AssetId, LockTime, OutPoint, Script, Transaction, TxIn, TxOut, Txid, confidential,
 };
+use lending_sdk::hex::FromSlice;
 use sqlx::PgPool;
 use uuid::Uuid;
 

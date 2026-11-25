@@ -2,7 +2,7 @@ import { Skeleton } from '@heroui/react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useChainTime } from '@/api/esplora/hooks'
 import { useAllBorrowerOffers } from '@/api/indexer/hooks'
 import { useAssetPriceUsd } from '@/api/prices/hooks'
 import ChecksIcon from '@/components/icons/ChecksIcon'
@@ -36,7 +36,7 @@ export function BorrowCard() {
   const offersQuery = useAllBorrowerOffers(scriptPubkey ?? '', {
     status: ['active', 'pending', 'liquidated'],
   })
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
   const { pendingTxs } = usePendingTransactions()
   const collateralPriceUsd = useAssetPriceUsd(NETWORK_CONFIG.collateralAsset.id)
 
@@ -46,7 +46,7 @@ export function BorrowCard() {
   const notifications = buildOfferNotifications(
     offersQuery.data ?? [],
     scriptPubkey,
-    currentBlockHeight,
+    currentTime,
   ).filter(n => !getOfferPendingTx(n.offer.id, pendingTxs))
 
   useEffect(() => {

@@ -15,7 +15,7 @@ const CARDS = [
   {
     icon: LockIcon,
     title: 'Collateral-Secured',
-    description: 'Every loan is backed by locked LBTC on the Liquid Network.',
+    description: 'Every loan is backed by locked WBTC on Wharfedale.',
   },
   {
     icon: ListChecksIcon,
@@ -35,9 +35,9 @@ export function ForLenders() {
           </div>
           <p className='text-foreground text-sm'>
             Lend your USDT liquidity and earn interest. Review borrower requests and the rates
-            they&apos;ve set, then fund loans directly. Every loan is backed by locked LBTC on the
-            Liquid Network. If a borrower doesn&apos;t repay, the contract allows you to take
-            possession of the collateral.
+            they&apos;ve set, then fund loans directly. Every loan is backed by locked WBTC on
+            Wharfedale. If a borrower doesn&apos;t repay, the contract allows you to take possession
+            of the collateral.
           </p>
         </Reveal>
         <Reveal delay={0.1} className='hidden lg:block'>

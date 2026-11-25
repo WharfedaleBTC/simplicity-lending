@@ -1,9 +1,10 @@
 use clap::Subcommand;
 
-use simplex::provider::ProviderTrait;
-use simplex::simplicityhl::elements::{OutPoint, Txid, hex::ToHex};
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{
+use lending_sdk::elements::{OutPoint, Txid};
+use lending_sdk::hex::ToHex;
+use lending_sdk::provider::ProviderTrait;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{
     FinalTransaction, PartialInput, PartialOutput, RequiredSignature, UTXO,
 };
 
@@ -85,7 +86,7 @@ impl Factory {
         let issuance_details = ft.add_issuance_input(
             PartialInput::new(policy_utxo),
             IssuanceInput::new_issuance(FACTORY_ASSET_TOTAL_AMOUNT, 0, factory_entropy),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
 
         ft.add_output(PartialOutput::new(
@@ -115,14 +116,12 @@ impl Factory {
         creation_txid: Txid,
         program_outpoint: OutPoint,
     ) -> Result<(), FactoryCommandError> {
-        let creation_tx = context.esplora_provider.fetch_transaction(&creation_txid)?;
+        let creation_tx = context.provider.fetch_transaction(&creation_txid)?;
 
         let (issuance_factory, factory_asset_id) =
             IssuanceFactory::try_from_tx(&creation_tx, context.get_network())?;
 
-        let program_tx = context
-            .esplora_provider
-            .fetch_transaction(&program_outpoint.txid)?;
+        let program_tx = context.provider.fetch_transaction(&program_outpoint.txid)?;
         let program_txout = program_tx
             .output
             .get(program_outpoint.vout as usize)
@@ -148,10 +147,7 @@ impl Factory {
 
         issuance_factory.attach_factory_removing(&mut ft, program_utxo);
 
-        ft.add_input(
-            PartialInput::new(auth_nft_utxo),
-            RequiredSignature::NativeEcdsa,
-        );
+        ft.add_input(PartialInput::new(auth_nft_utxo), RequiredSignature::KeyPath);
 
         let receipt = context.signer.broadcast(&ft)?;
 

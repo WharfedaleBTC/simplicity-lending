@@ -1,16 +1,17 @@
-use simplex::provider::{EsploraProvider, SimplicityNetwork};
-use simplex::signer::Signer;
+use lending_sdk::Network;
+use lending_sdk::provider::ProviderTrait;
+use lending_sdk::signer::Signer;
 
 use crate::indexer::IndexerClient;
 
 pub struct Session {
-    provider: EsploraProvider,
+    provider: Box<dyn ProviderTrait>,
     signer: Signer,
     indexer: IndexerClient,
 }
 
 impl Session {
-    pub fn new(provider: EsploraProvider, signer: Signer, indexer: IndexerClient) -> Self {
+    pub fn new(provider: Box<dyn ProviderTrait>, signer: Signer, indexer: IndexerClient) -> Self {
         Self {
             provider,
             signer,
@@ -18,8 +19,8 @@ impl Session {
         }
     }
 
-    pub fn provider(&self) -> &EsploraProvider {
-        &self.provider
+    pub fn provider(&self) -> &dyn ProviderTrait {
+        self.provider.as_ref()
     }
 
     pub fn signer(&self) -> &Signer {
@@ -30,11 +31,11 @@ impl Session {
         &self.indexer
     }
 
-    pub fn network(&self) -> SimplicityNetwork {
-        self.provider.network
+    pub fn network(&self) -> Network {
+        *self.provider.get_network()
     }
 
-    pub fn into_parts(self) -> (EsploraProvider, Signer, IndexerClient) {
+    pub fn into_parts(self) -> (Box<dyn ProviderTrait>, Signer, IndexerClient) {
         (self.provider, self.signer, self.indexer)
     }
 }

@@ -16,7 +16,7 @@ const POINTS = [
   },
   {
     title: 'Bitcoin-Native:',
-    description: 'Built on the Liquid Network, a Bitcoin sidechain.',
+    description: 'Built on Wharfedale, a Bitcoin-style chain with confidential assets.',
   },
   {
     title: 'Deterministic Execution:',

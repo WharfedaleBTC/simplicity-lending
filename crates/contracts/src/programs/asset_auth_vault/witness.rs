@@ -1,4 +1,4 @@
-use simplex::either::Either::{Left, Right};
+use lending_sdk::either::Either::{Left, Right};
 
 use crate::artifacts::asset_auth_vault::derived_asset_auth_vault::AssetAuthVaultWitness;
 

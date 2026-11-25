@@ -1,4 +1,4 @@
-use simplex::signer::SignerError;
+use lending_sdk::signer::SignerError;
 
 use crate::commands::{
     account::AccountCommandError, factory::FactoryCommandError, issuance::IssuanceCommandError,
@@ -17,6 +17,9 @@ pub enum CliError {
 
     #[error("Failed to create signer: '{0}'")]
     Signer(#[from] SignerError),
+
+    #[error(transparent)]
+    Provider(#[from] lending_sdk::provider::ProviderError),
 
     #[error("IO error: '{0}'")]
     Io(#[from] std::io::Error),

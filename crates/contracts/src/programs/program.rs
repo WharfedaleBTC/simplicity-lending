@@ -1,13 +1,13 @@
-use ring::digest::{SHA256, digest};
-use simplex::program::{Program, WitnessTrait};
-use simplex::provider::SimplicityNetwork;
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{
+use lending_sdk::Network;
+use lending_sdk::elements::hashes::sha256;
+use lending_sdk::program::{Program, WitnessTrait};
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{
     FinalTransaction, IssuanceDetails, PartialInput, PartialOutput, ProgramInput,
     RequiredSignature, UTXO,
 };
 
-use simplex::simplicityhl::elements::{AssetId, Script};
+use lending_sdk::elements::{AssetId, Script};
 
 pub const PROGRAM_ID_LENGTH: usize = 4;
 pub type ProgramId = [u8; PROGRAM_ID_LENGTH];
@@ -40,7 +40,7 @@ pub trait CreationMetadata: Sized {
     }
 }
 
-pub trait SimplexProgram {
+pub trait SimplicityProgram {
     fn add_program_input<'a>(
         &self,
         ft: &'a mut FinalTransaction,
@@ -49,7 +49,7 @@ pub trait SimplexProgram {
     ) -> &'a mut FinalTransaction {
         ft.add_program_input(
             PartialInput::new(program_utxo),
-            ProgramInput::new(Box::new(self.get_program().clone()), witness),
+            ProgramInput::new(self.get_program().clone(), witness),
             RequiredSignature::None,
         );
 
@@ -64,7 +64,7 @@ pub trait SimplexProgram {
     ) -> &'a mut FinalTransaction {
         ft.add_program_input(
             partial_input,
-            ProgramInput::new(Box::new(self.get_program().clone()), witness),
+            ProgramInput::new(self.get_program().clone(), witness),
             RequiredSignature::None,
         );
 
@@ -80,7 +80,7 @@ pub trait SimplexProgram {
     ) -> &'a mut FinalTransaction {
         ft.add_program_input(
             PartialInput::new(program_utxo),
-            ProgramInput::new(Box::new(self.get_program().clone()), witness),
+            ProgramInput::new(self.get_program().clone(), witness),
             required_signature,
         );
 
@@ -97,7 +97,7 @@ pub trait SimplexProgram {
     ) -> IssuanceDetails {
         ft.add_program_issuance_input(
             PartialInput::new(program_utxo),
-            ProgramInput::new(Box::new(self.get_program().clone()), witness),
+            ProgramInput::new(self.get_program().clone(), witness),
             issuance_input,
             required_signature,
         )
@@ -127,9 +127,9 @@ pub trait SimplexProgram {
     }
 
     fn get_program_id() -> ProgramId {
-        let source_code_hash = digest(&SHA256, Self::get_program_source_code().as_bytes());
+        let source_code_hash = sha256::Hash::hash(Self::get_program_source_code().as_bytes());
         let mut hash_prefix = [0; 4];
-        hash_prefix.copy_from_slice(&source_code_hash.as_ref()[..4]);
+        hash_prefix.copy_from_slice(&source_code_hash.as_byte_array()[..4]);
 
         hash_prefix
     }
@@ -138,10 +138,10 @@ pub trait SimplexProgram {
 
     fn get_program(&self) -> &Program;
 
-    fn get_network(&self) -> &SimplicityNetwork;
+    fn get_network(&self) -> &Network;
 }
 
-pub trait MetadataProgram: SimplexProgram {
+pub trait MetadataProgram: SimplicityProgram {
     type Metadata: CreationMetadata;
 
     fn build_metadata(&self) -> Self::Metadata;

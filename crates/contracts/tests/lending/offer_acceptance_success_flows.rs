@@ -1,5 +1,5 @@
-use simplex::signer::Signer;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use lending_contracts::programs::lending::{LendingOffer, LendingOfferParameters, OfferParameters};
 
@@ -10,7 +10,7 @@ use super::setup::{
 };
 
 fn default_offer_acceptance_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     lender: &Signer,
 ) -> anyhow::Result<(FinalTransaction, LendingOffer, LendingOfferParameters)> {
     let provider = context.get_default_provider();
@@ -20,12 +20,13 @@ fn default_offer_acceptance_setup(
     let issuance_factory = setup_issuance_factory(context)?;
 
     let principal_asset_amount = 20000;
-    let current_height = provider.fetch_tip_height()?;
+    // Loans end at a unix time (an hour from the tip block).
+    let current_time = u32::try_from(provider.fetch_tip_timestamp()?)?;
 
     let offer_parameters = OfferParameters {
         collateral_amount: 3000,
         principal_amount: 10000,
-        loan_expiration_time: current_height + 60,
+        loan_expiration_time: current_time + 3600,
         principal_interest_rate: 1000,
     };
 
@@ -54,10 +55,9 @@ fn default_offer_acceptance_setup(
     Ok((ft, offer, active_offer_parameters))
 }
 
-#[simplex::test]
-fn accepts_pending_offer_with_one_explicit_principal_input(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn accepts_pending_offer_with_one_explicit_principal_input() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let lender = context.random_signer();
 
     let (mut ft, _, active_offer_parameters) = default_offer_acceptance_setup(&context, &lender)?;
@@ -76,7 +76,7 @@ fn accepts_pending_offer_with_one_explicit_principal_input(
 
     ft.add_input(
         PartialInput::new(lender_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -98,10 +98,9 @@ fn accepts_pending_offer_with_one_explicit_principal_input(
     Ok(())
 }
 
-#[simplex::test]
-fn accepts_pending_offer_with_one_confidential_principal_input(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn accepts_pending_offer_with_one_confidential_principal_input() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let lender = context.random_signer();
 
     let (mut ft, _, active_offer_parameters) = default_offer_acceptance_setup(&context, &lender)?;
@@ -125,7 +124,7 @@ fn accepts_pending_offer_with_one_confidential_principal_input(
 
     ft.add_input(
         PartialInput::new(conf_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(

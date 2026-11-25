@@ -1,11 +1,10 @@
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::utils::get_random_seed;
-use simplex::provider::ProviderTrait;
-use simplex::simplicityhl::elements::AssetId;
-use simplex::simplicityhl::elements::hex::ToHex;
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::AssetId;
+use lending_sdk::hex::ToHex;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use crate::error::SessionError;
 use crate::session::Session;
@@ -49,7 +48,7 @@ impl Session {
         let issuance_details = ft.add_issuance_input(
             PartialInput::new(policy_utxo),
             IssuanceInput::new_issuance(FACTORY_ASSET_TOTAL_AMOUNT, 0, entropy),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
 
         ft.add_output(PartialOutput::new(
@@ -118,10 +117,7 @@ impl Session {
 
         let mut ft = FinalTransaction::new();
         factory.attach_factory_removing(&mut ft, program_utxo);
-        ft.add_input(
-            PartialInput::new(auth_nft_utxo),
-            RequiredSignature::NativeEcdsa,
-        );
+        ft.add_input(PartialInput::new(auth_nft_utxo), RequiredSignature::KeyPath);
 
         Ok(ft)
     }

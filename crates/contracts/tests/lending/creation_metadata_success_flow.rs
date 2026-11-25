@@ -1,6 +1,6 @@
-use lending_contracts::programs::program::{MetadataProgram, SimplexProgram};
+use lending_contracts::programs::program::{MetadataProgram, SimplicityProgram};
 use lending_contracts::utils::op_return_payload;
-use simplex::simplicityhl::elements::Txid;
+use lending_sdk::elements::Txid;
 
 use lending_contracts::programs::lending::{LendingOffer, LendingOfferParameters, OfferParameters};
 
@@ -8,7 +8,7 @@ use super::common::wallet::split_first_signer_utxo;
 use super::setup::{setup_issuance_factory, setup_pending_offer};
 
 fn default_pending_offer_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
 ) -> anyhow::Result<(Txid, LendingOffer, LendingOfferParameters)> {
     let provider = context.get_default_provider();
 
@@ -17,12 +17,13 @@ fn default_pending_offer_setup(
     let issuance_factory = setup_issuance_factory(context)?;
 
     let principal_asset_amount = 20000;
-    let current_height = provider.fetch_tip_height()?;
+    // Loans end at a unix time (an hour from the tip block).
+    let current_time = u32::try_from(provider.fetch_tip_timestamp()?)?;
 
     let offer_parameters = OfferParameters {
         collateral_amount: 3000,
         principal_amount: 10000,
-        loan_expiration_time: current_height + 60,
+        loan_expiration_time: current_time + 3600,
         principal_interest_rate: 1000,
     };
 
@@ -34,10 +35,9 @@ fn default_pending_offer_setup(
     )
 }
 
-#[simplex::test]
-fn creates_pending_offer_with_creation_metadata(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn creates_pending_offer_with_creation_metadata() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let (lending_offer_creation_txid, _, lending_offer_parameters) =
         default_pending_offer_setup(&context)?;
@@ -57,8 +57,7 @@ fn creates_pending_offer_with_creation_metadata(
         &op_return_data[4..36],
         lending_offer_parameters
             .principal_asset_id
-            .into_inner()
-            .0
+            .to_byte_array()
             .as_slice()
     );
     assert_eq!(
@@ -89,8 +88,9 @@ fn creates_pending_offer_with_creation_metadata(
     Ok(())
 }
 
-#[simplex::test]
-fn decodes_pending_offer_creation_metadata(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn decodes_pending_offer_creation_metadata() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let (lending_offer_creation_txid, _, lending_offer_parameters) =
         default_pending_offer_setup(&context)?;

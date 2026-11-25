@@ -1,6 +1,8 @@
+use lending_sdk::hex::FromSlice;
 use sqlx::PgPool;
 
-use simplex::simplicityhl::elements::{OutPoint, Txid, hashes::Hash, hex::ToHex};
+use lending_sdk::elements::{OutPoint, Txid};
+use lending_sdk::hex::ToHex;
 
 use crate::{
     db::DbTx,

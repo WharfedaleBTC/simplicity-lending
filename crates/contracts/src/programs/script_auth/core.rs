@@ -1,7 +1,7 @@
-use simplex::{
+use lending_sdk::{
+    Network,
+    elements::AssetId,
     program::Program,
-    provider::SimplicityNetwork,
-    simplicityhl::elements::AssetId,
     transaction::{FinalTransaction, UTXO},
 };
 
@@ -9,7 +9,7 @@ use crate::{
     artifacts::script_auth::ScriptAuthProgram, programs::script_auth::ScriptAuthWitnessParams,
 };
 
-use crate::programs::program::SimplexProgram;
+use crate::programs::program::SimplicityProgram;
 use crate::programs::script_auth::ScriptAuthParameters;
 
 pub struct ScriptAuth {
@@ -25,7 +25,7 @@ impl ScriptAuth {
         }
     }
 
-    pub fn from_simplex_program(program: &impl SimplexProgram) -> Self {
+    pub fn from_program(program: &impl SimplicityProgram) -> Self {
         Self::new(ScriptAuthParameters {
             script_hash: program.get_script_hash(),
             network: *program.get_network(),
@@ -55,7 +55,7 @@ impl ScriptAuth {
     }
 }
 
-impl SimplexProgram for ScriptAuth {
+impl SimplicityProgram for ScriptAuth {
     fn get_program_source_code() -> &'static str {
         ScriptAuthProgram::SOURCE
     }
@@ -64,7 +64,7 @@ impl SimplexProgram for ScriptAuth {
         self.program.as_ref()
     }
 
-    fn get_network(&self) -> &SimplicityNetwork {
+    fn get_network(&self) -> &Network {
         &self.parameters.network
     }
 }

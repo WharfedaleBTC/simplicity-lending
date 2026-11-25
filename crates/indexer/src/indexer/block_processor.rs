@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use simplex::simplicityhl::elements::Transaction;
+use lending_sdk::elements::Transaction;
 
 use uuid::Uuid;
 

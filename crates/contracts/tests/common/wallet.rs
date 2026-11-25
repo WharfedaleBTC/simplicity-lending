@@ -1,7 +1,7 @@
 #![allow(dead_code)]
-use simplex::provider::SimplicityNetwork;
-use simplex::signer::Signer;
-use simplex::transaction::{
+use lending_sdk::Network;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{
     FinalTransaction, PartialInput, PartialOutput, RequiredSignature, UTXO,
 };
 
@@ -9,14 +9,14 @@ pub fn get_split_utxo_ft(
     utxo: UTXO,
     amounts: Vec<u64>,
     signer: &Signer,
-    network: SimplicityNetwork,
+    network: Network,
 ) -> FinalTransaction {
     let utxo_asset_id = utxo.explicit_asset();
     let utxo_amount = utxo.explicit_amount();
 
     let mut ft = FinalTransaction::new();
 
-    ft.add_input(PartialInput::new(utxo), RequiredSignature::NativeEcdsa);
+    ft.add_input(PartialInput::new(utxo), RequiredSignature::KeyPath);
 
     let signer_script_pubkey = signer.get_address().script_pubkey();
     let mut total_amount = 0;
@@ -46,7 +46,7 @@ pub fn get_split_utxo_ft(
     ft
 }
 
-pub fn split_first_signer_utxo(context: &simplex::TestContext, amounts: Vec<u64>) {
+pub fn split_first_signer_utxo(context: &lending_sdk::TestContext, amounts: Vec<u64>) {
     let signer = context.get_default_signer();
 
     let signer_utxos = signer.get_utxos().unwrap();

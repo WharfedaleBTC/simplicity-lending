@@ -1,0 +1,98 @@
+# Simplicity lending on the local Wharfedale network (wharfedale/: make run): the indexer, its
+# API, Postgres and the web app (http://localhost:8090). Use the Makefile in the repository root.
+# Images are built from source: the build context is the folder holding simplicity-lending/,
+# wharfedale/, wharfedale-sdk-rs/ and malachite/.
+
+name: lending
+
+services:
+  # Writes /config (the web app's and the indexer's assets) from lending.env.
+  setup:
+    image: wharfedale:dev
+    command: [bash, /setup.sh]
+    env_file: lending.env
+    volumes:
+      - config:/config
+      - ./setup.sh:/setup.sh:ro
+    environment:
+      RPC: http://rpc0:18443
+    networks: [default, wharfedale]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lending-indexer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lending-indexer"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    image: lending-migrate:dev
+    build:
+      context: ../..
+      dockerfile: simplicity-lending/docker/indexer.Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/lending-indexer
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    image: lending-indexer:dev
+    build:
+      context: ../..
+      dockerfile: simplicity-lending/docker/indexer.Dockerfile
+    environment:
+      RUN_MODE: api
+      DATABASE__HOST: postgres
+      ESPLORA__BASE_URL: http://rpc0:18443
+    volumes:
+      - config:/config:ro
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      setup: { condition: service_completed_successfully }
+
+  indexer:
+    image: lending-indexer:dev
+    environment:
+      RUN_MODE: indexer
+      DATABASE__HOST: postgres
+      ESPLORA__BASE_URL: http://rpc0:18443
+    volumes:
+      - config:/config:ro
+    restart: unless-stopped
+    networks: [default, wharfedale]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      setup: { condition: service_completed_successfully }
+
+  web:
+    image: lending-web:dev
+    build:
+      context: ../..
+      dockerfile: simplicity-lending/docker/web.Dockerfile
+    volumes:
+      - config:/config:ro
+    ports: ["8090:80"]
+    restart: unless-stopped
+    networks: [default, wharfedale]
+    depends_on:
+      api: { condition: service_started }
+      setup: { condition: service_completed_successfully }
+
+networks:
+  wharfedale:
+    external: true
+    name: wharfedale_default
+
+volumes:
+  pgdata:
+  config:

@@ -1,14 +1,14 @@
+import { sources } from 'virtual:simplicity-sources'
+
+import { bytes32ToHex } from '@/utils/hex'
+import type { Bytes32, Uint32, Uint64 } from '@/utils/uint'
 import {
   SimplicityArguments,
   SimplicityProgram,
   SimplicityType,
   SimplicityTypedValue,
   SimplicityWitnessValues,
-} from 'lwk_wasm'
-import { sources } from 'virtual:simplicity-sources'
-
-import { bytes32ToHex } from '@/utils/hex'
-import type { Bytes32, Uint32, Uint64 } from '@/utils/uint'
+} from '@/wharfedale/simplicity'
 
 const ARGUMENTS = {
   VAULT_ASSET_ID: 'VAULT_ASSET_ID',

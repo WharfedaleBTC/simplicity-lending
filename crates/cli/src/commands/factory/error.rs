@@ -1,5 +1,5 @@
 use lending_contracts::programs::issuance_factory::IssuanceFactoryError;
-use simplex::{provider::ProviderError, signer::SignerError};
+use lending_sdk::{provider::ProviderError, signer::SignerError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FactoryCommandError {
@@ -12,9 +12,9 @@ pub enum FactoryCommandError {
     #[error("Auth NFT UTXO not found in signer wallet")]
     AuthNftUtxoNotFound,
 
-    #[error("Simplex Signer error: {0}")]
+    #[error("Signer error: {0}")]
     Signer(#[from] SignerError),
 
-    #[error("Simplex Provider error: {0}")]
+    #[error("Provider error: {0}")]
     Provider(#[from] ProviderError),
 }

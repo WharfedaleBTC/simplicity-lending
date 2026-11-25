@@ -1,15 +1,15 @@
 use lending_contracts::programs::asset_auth_vault::{
     ActiveAssetAuthVault, ActiveAssetAuthVaultParameters, FinalizedAssetAuthVaultParameters,
 };
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::simplicityhl::elements::Script;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Script;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::{final_supply, issue_auth_assets, prepare_vault_asset, setup_asset_auth_vault};
 
 fn default_final_vault_supplying_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     with_supplier_asset_burn: bool,
 ) -> anyhow::Result<(ActiveAssetAuthVault, ActiveAssetAuthVaultParameters)> {
     let (supplier_asset_id, keeper_asset_id) = issue_auth_assets(context, 1, 1)?;
@@ -35,10 +35,9 @@ fn default_final_vault_supplying_setup(
     Ok((asset_auth_vault, active_vault_parameters))
 }
 
-#[simplex::test]
-fn final_supply_fails_when_vault_already_finalized(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_fails_when_vault_already_finalized() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -65,14 +64,14 @@ fn final_supply_fails_when_vault_already_finalized(
     ));
     ft.add_input(
         PartialInput::new(supplier_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     asset_auth_vault.attach_final_supplying(&mut ft, asset_auth_vault_utxo, 0, 0, amount_to_supply);
 
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let result = signer.finalize(&ft);
@@ -85,10 +84,9 @@ fn final_supply_fails_when_vault_already_finalized(
     Ok(())
 }
 
-#[simplex::test]
-fn final_supply_fails_when_auth_utxo_is_invalid(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_fails_when_auth_utxo_is_invalid() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -116,11 +114,11 @@ fn final_supply_fails_when_auth_utxo_is_invalid(
         ));
         ft.add_input(
             PartialInput::new(supplier_auth_utxo),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         ft.add_input(
             PartialInput::new(utxo_to_supply),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
 
         asset_auth_vault.attach_final_supplying(
@@ -142,10 +140,9 @@ fn final_supply_fails_when_auth_utxo_is_invalid(
     Ok(())
 }
 
-#[simplex::test]
-fn final_supply_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_fails_when_auth_utxo_burned_but_burn_flag_was_not_set() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -169,14 +166,14 @@ fn final_supply_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
     ));
     ft.add_input(
         PartialInput::new(supplier_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     asset_auth_vault.attach_final_supplying(&mut ft, asset_auth_vault_utxo, 0, 0, amount_to_supply);
 
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let result = signer.finalize(&ft);
@@ -189,10 +186,9 @@ fn final_supply_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
     Ok(())
 }
 
-#[simplex::test]
-fn final_supply_fails_when_auth_utxo_was_not_burned_but_burn_flag_was_set(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_fails_when_auth_utxo_was_not_burned_but_burn_flag_was_set() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -215,14 +211,14 @@ fn final_supply_fails_when_auth_utxo_was_not_burned_but_burn_flag_was_set(
     ));
     ft.add_input(
         PartialInput::new(supplier_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     asset_auth_vault.attach_final_supplying(&mut ft, asset_auth_vault_utxo, 0, 0, amount_to_supply);
 
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let result = signer.finalize(&ft);

@@ -1,5 +1,5 @@
 import type { OfferShort } from '@/api/indexer/schemas'
-import { REPAYMENT_DUE_THRESHOLD_BLOCKS } from '@/constants/offers'
+import { REPAYMENT_DUE_THRESHOLD_SECONDS } from '@/constants/offers'
 
 import { truncateAddress } from './format'
 import { type OfferAction, resolveOfferAction } from './offerActions'
@@ -65,7 +65,7 @@ const NOTIFICATION_META: Record<OfferActionKey, NotificationMeta> = {
 function shouldNotify(
   action: OfferActionKey,
   offer: OfferShort,
-  currentBlockHeight: number | undefined,
+  currentTime: number | undefined,
 ): boolean {
   switch (action) {
     case 'claim-interest':
@@ -73,11 +73,11 @@ function shouldNotify(
     case 'liquidate':
       return true
     case 'cancel':
-      return currentBlockHeight !== undefined && currentBlockHeight > offer.loan_expiration_height
+      return currentTime !== undefined && currentTime > offer.loan_expiration_time
     case 'repay': {
-      if (currentBlockHeight === undefined) return false
-      const termLeft = getOfferTermLeft(offer, currentBlockHeight)
-      return termLeft < REPAYMENT_DUE_THRESHOLD_BLOCKS
+      if (currentTime === undefined) return false
+      const termLeft = getOfferTermLeft(offer, currentTime)
+      return termLeft < REPAYMENT_DUE_THRESHOLD_SECONDS
     }
   }
 }
@@ -85,13 +85,11 @@ function shouldNotify(
 function toNotification(
   offer: OfferShort,
   action: OfferActionKey,
-  currentBlockHeight: number | undefined,
+  currentTime: number | undefined,
 ): OfferNotification {
   const meta = NOTIFICATION_META[action]
   const isOverdue =
-    action === 'repay' &&
-    currentBlockHeight !== undefined &&
-    currentBlockHeight > offer.loan_expiration_height
+    action === 'repay' && currentTime !== undefined && currentTime > offer.loan_expiration_time
 
   return {
     offer,
@@ -108,14 +106,14 @@ function toNotification(
 export function buildOfferNotifications(
   offers: OfferShort[],
   scriptPubkey: string | null,
-  currentBlockHeight: number | undefined,
+  currentTime: number | undefined,
 ): OfferNotification[] {
   const list: OfferNotification[] = []
   for (const offer of offers) {
-    const action = resolveOfferAction(offer, scriptPubkey, currentBlockHeight ?? 0)
+    const action = resolveOfferAction(offer, scriptPubkey, currentTime ?? 0)
     if (action === 'accept' || action === 'none') continue
-    if (shouldNotify(action, offer, currentBlockHeight)) {
-      list.push(toNotification(offer, action, currentBlockHeight))
+    if (shouldNotify(action, offer, currentTime)) {
+      list.push(toNotification(offer, action, currentTime))
     }
   }
   return list.sort(

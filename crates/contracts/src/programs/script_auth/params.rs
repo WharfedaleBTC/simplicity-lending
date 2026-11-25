@@ -1,11 +1,11 @@
-use simplex::provider::SimplicityNetwork;
+use lending_sdk::Network;
 
 use crate::artifacts::script_auth::derived_script_auth::ScriptAuthArguments;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ScriptAuthParameters {
     pub script_hash: [u8; 32],
-    pub network: SimplicityNetwork,
+    pub network: Network,
 }
 
 impl ScriptAuthParameters {

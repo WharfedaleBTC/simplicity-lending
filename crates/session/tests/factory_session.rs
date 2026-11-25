@@ -1,16 +1,16 @@
 mod utils;
 
 use anyhow::Context;
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::utils::get_random_seed;
+use lending_sdk::Network;
+use lending_sdk::elements::{AssetId, Txid};
+use lending_sdk::hex::FromSlice;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 use lending_session::SessionError;
 use serial_test::serial;
-use simplex::provider::SimplicityNetwork;
-use simplex::signer::Signer;
-use simplex::simplicityhl::elements::hashes::Hash;
-use simplex::simplicityhl::elements::{AssetId, Txid};
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use utils::{
     FACTORY_ISSUING_UTXOS_COUNT, FACTORY_REISSUANCE_FLAGS, build_session,
@@ -20,7 +20,7 @@ use utils::{
 
 fn issue_only_program_factory_utxo(
     signer: &Signer,
-    network: SimplicityNetwork,
+    network: Network,
 ) -> anyhow::Result<(AssetId, Txid, i32, Vec<u8>)> {
     let factory = issuance_factory_for_network(network);
     let factory_program_script = factory.get_script_pubkey();
@@ -34,7 +34,7 @@ fn issue_only_program_factory_utxo(
     let issuance = tx.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(1, 0, get_random_seed()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     tx.add_output(PartialOutput::new(
         factory_program_script.clone(),
@@ -134,7 +134,7 @@ async fn create_factory_returns_no_policy_utxos_for_unfunded_signer() -> anyhow:
 async fn create_factory_rejects_when_indexer_reports_existing_factory() -> anyhow::Result<()> {
     let (context, pool) = setup_it_context_pool().await?;
 
-    let signer = context.create_signer(&context.get_config().mnemonic);
+    let signer = context.default_signer_copy();
     let signer_script = signer.get_address().script_pubkey().to_bytes();
     let existing_factory_asset = AssetId::from_slice(&[7_u8; 32]).expect("valid asset id");
     let fake_txid = Txid::from_slice(&[0x11_u8; 32]).expect("valid txid");
@@ -282,7 +282,7 @@ async fn remove_factory_returns_invalid_state_for_oversized_issuing_utxos_count(
 -> anyhow::Result<()> {
     let (context, pool) = setup_it_context_pool().await?;
 
-    let signer = context.create_signer(&context.get_config().mnemonic);
+    let signer = context.default_signer_copy();
     let signer_script = signer.get_address().script_pubkey().to_bytes();
     let factory_asset_id = AssetId::from_slice(&[0x13_u8; 32]).expect("valid asset id");
     let fake_txid = Txid::from_slice(&[0x23_u8; 32]).expect("valid txid");

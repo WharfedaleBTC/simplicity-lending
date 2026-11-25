@@ -1,17 +1,17 @@
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::programs::script_auth::{
     ScriptAuth, ScriptAuthParameters, ScriptAuthWitnessParams,
 };
-use simplex::transaction::PartialOutput;
-use simplex::{
+use lending_sdk::transaction::PartialOutput;
+use lending_sdk::{
+    network::hash_script,
     transaction::{FinalTransaction, PartialInput, RequiredSignature},
-    utils::hash_script,
 };
 
 use super::common::wallet::split_first_signer_utxo;
 
 fn setup_script_auth(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
 ) -> anyhow::Result<(ScriptAuth, ScriptAuthParameters)> {
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
@@ -43,8 +43,9 @@ fn setup_script_auth(
     Ok((script_auth, script_auth_parameters))
 }
 
-#[simplex::test]
-fn unlocks_with_one_explicit_output(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn unlocks_with_one_explicit_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -65,7 +66,7 @@ fn unlocks_with_one_explicit_output(context: simplex::TestContext) -> anyhow::Re
     );
     ft.add_input(
         PartialInput::new(auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -82,8 +83,9 @@ fn unlocks_with_one_explicit_output(context: simplex::TestContext) -> anyhow::Re
     Ok(())
 }
 
-#[simplex::test]
-fn unlocks_with_multiple_explicit_outputs(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn unlocks_with_multiple_explicit_outputs() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -104,7 +106,7 @@ fn unlocks_with_multiple_explicit_outputs(context: simplex::TestContext) -> anyh
     );
     ft.add_input(
         PartialInput::new(auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let first_locked_output_amount = script_auth_utxo.explicit_amount() / 2;
@@ -132,8 +134,9 @@ fn unlocks_with_multiple_explicit_outputs(context: simplex::TestContext) -> anyh
     Ok(())
 }
 
-#[simplex::test]
-fn unlocks_with_confidential_output(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn unlocks_with_confidential_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -154,7 +157,7 @@ fn unlocks_with_confidential_output(context: simplex::TestContext) -> anyhow::Re
     );
     ft.add_input(
         PartialInput::new(auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(

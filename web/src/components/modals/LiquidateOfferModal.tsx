@@ -11,16 +11,17 @@ import OfferDetailsBody from '@/components/modals/OfferDetailsBody'
 import { useFormatAmount } from '@/hooks/useFormatAmount'
 import { useLiquidateOffer } from '@/hooks/useLiquidateOffer'
 import { useStandardTransactionFlow } from '@/hooks/useStandardTransactionFlow'
+import { useChain } from '@/providers/chain/useChain'
+import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
+import { useWallet } from '@/providers/wallet/useWallet'
+import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
+import { formatUnixTime } from '@/utils/offers'
 import {
   estimateFeeBudgetSats,
   EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY,
   selectFeeUtxos,
   utxoToOutpointString,
-} from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
-import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
-import { useWallet } from '@/providers/wallet/useWallet'
-import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
+} from '@/wharfedale/utxo'
 
 const LIQUIDATE_WEIGHT_UNITS =
   LENDING_MAX_WEIGHT_TO_SATISFY.Liquidation + EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY
@@ -39,7 +40,7 @@ export default function LiquidateOfferModal({
   onSuccess,
 }: LiquidateOfferModalProps) {
   const { syncWallet, getBlindedWalletUtxos, scriptPubkey } = useWallet()
-  const { lwkNetwork } = useLwk()
+  const { chainNetwork: lwkNetwork } = useChain()
   const { liquidateOffer } = useLiquidateOffer()
   const runStandardTransactionFlow = useStandardTransactionFlow()
   const { addPendingTx } = usePendingTransactions()
@@ -92,7 +93,7 @@ export default function LiquidateOfferModal({
   const txSummary = useMemo(
     () => [
       { label: 'Collateral', value: formatCollateralDisplay(offer.collateral_amount) },
-      { label: 'Expiration Block', value: `#${offer.loan_expiration_height}` },
+      { label: 'Expired', value: formatUnixTime(offer.loan_expiration_time) },
     ],
     [offer, formatCollateralDisplay],
   )

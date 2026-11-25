@@ -1,7 +1,8 @@
 use clap::Parser;
 
-use simplex::provider::{EsploraProvider, SimplicityNetwork};
-use simplex::signer::Signer;
+use lending_sdk::Network;
+use lending_sdk::provider::{NodeProvider, ProviderTrait};
+use lending_sdk::signer::Signer;
 
 use crate::commands::account::Account;
 use crate::commands::core::Command;
@@ -12,7 +13,7 @@ use crate::error::CliError;
 
 #[derive(Debug, Parser)]
 #[command(name = "lending-cli")]
-#[command(version, about = "Simplicity helper Lending CLI for Liquid testnet")]
+#[command(version, about = "Simplicity Lending helper CLI for Wharfedale")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -20,12 +21,12 @@ pub struct Cli {
 
 pub struct CliContext {
     pub signer: Signer,
-    pub esplora_provider: EsploraProvider,
+    pub provider: NodeProvider,
 }
 
 impl CliContext {
-    pub fn get_network(&self) -> SimplicityNetwork {
-        self.esplora_provider.network
+    pub fn get_network(&self) -> Network {
+        *self.provider.get_network()
     }
 }
 
@@ -53,15 +54,12 @@ impl Cli {
     fn build_context() -> Result<CliContext, CliError> {
         let config = CliConfig::load_config();
 
-        let esplora_provider = EsploraProvider::new(config.esplora_url.clone(), config.network);
+        let provider = NodeProvider::new(config.node_url.clone())?;
         let signer = Signer::new(
             &config.mnemonic,
-            Box::new(EsploraProvider::new(config.esplora_url, config.network)),
+            Box::new(NodeProvider::new(config.node_url)?),
         );
 
-        Ok(CliContext {
-            signer,
-            esplora_provider,
-        })
+        Ok(CliContext { signer, provider })
     }
 }

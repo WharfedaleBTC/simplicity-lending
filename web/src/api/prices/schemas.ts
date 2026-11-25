@@ -1,10 +1,12 @@
 import { z as zod } from 'zod'
 
-export const liquidPricesResponseSchema = zod.object({
-  count: zod.number(),
-  currency: zod.string(),
-  data: zod.record(zod.string(), zod.string()),
+/** Coinbase's public spot price: `{"data":{"amount":"58478.24","base":"BTC","currency":"USD"}}`. */
+export const coinbaseSpotSchema = zod.object({
+  data: zod.object({
+    amount: zod.string(),
+    base: zod.literal('BTC'),
+    currency: zod.literal('USD'),
+  }),
 })
-export type LiquidPricesResponse = zod.infer<typeof liquidPricesResponseSchema>
 
 export type AssetPricesUsd = Record<string, number>

@@ -1,6 +1,7 @@
-use simplex::{
-    provider::SimplicityNetwork,
-    simplicityhl::elements::{AssetId, Transaction, hex::ToHex},
+use lending_sdk::{
+    Network,
+    elements::{AssetId, Transaction},
+    hex::ToHex,
 };
 
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
@@ -18,7 +19,7 @@ use crate::{
 pub struct FactoryCreationsTracker {
     issuing_utxos_count: u8,
     reissuance_flags: u64,
-    network: SimplicityNetwork,
+    network: Network,
     asset_registration: Option<AssetRegistration>,
 }
 
@@ -26,7 +27,7 @@ impl FactoryCreationsTracker {
     pub fn new(
         issuing_utxos_count: u8,
         reissuance_flags: u64,
-        network: SimplicityNetwork,
+        network: Network,
         asset_registration: Option<AssetRegistration>,
     ) -> Self {
         Self {

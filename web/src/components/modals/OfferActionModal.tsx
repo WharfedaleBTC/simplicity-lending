@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useChainTime } from '@/api/esplora/hooks'
 import type { OfferShort } from '@/api/indexer/schemas'
 import AcceptOfferModal from '@/components/modals/AcceptOfferModal'
 import CancelOfferModal from '@/components/modals/CancelOfferModal'
@@ -39,11 +39,11 @@ export default function OfferActionModal({
   onSuccess,
 }: OfferActionModalProps) {
   const { scriptPubkey } = useWallet()
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
   const { pendingTxs } = usePendingTransactions()
 
   const sameOfferPendingTx = offer ? getOfferPendingTx(offer.id, pendingTxs) : null
-  const liveAction = offer ? resolveOfferAction(offer, scriptPubkey, currentBlockHeight) : 'none'
+  const liveAction = offer ? resolveOfferAction(offer, scriptPubkey, currentTime) : 'none'
 
   const isBlockedByOtherTx =
     !sameOfferPendingTx && liveAction !== 'none' && Boolean(getMempoolBlockingTx(pendingTxs))

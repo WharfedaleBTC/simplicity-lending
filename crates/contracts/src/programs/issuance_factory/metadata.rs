@@ -1,6 +1,6 @@
 use crate::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryError};
 use crate::programs::program::{
-    CreationMetadata, MetadataProgram, PROGRAM_ID_LENGTH, ProgramId, SimplexProgram,
+    CreationMetadata, MetadataProgram, PROGRAM_ID_LENGTH, ProgramId, SimplicityProgram,
 };
 
 const CREATION_OP_RETURN_DATA_LENGTH: usize =

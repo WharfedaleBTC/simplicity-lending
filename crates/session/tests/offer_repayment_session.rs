@@ -1,6 +1,6 @@
 mod utils;
 
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_session::SessionError;
 use serial_test::serial;
 

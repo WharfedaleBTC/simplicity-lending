@@ -2,7 +2,7 @@ import { Skeleton } from '@heroui/react'
 import { keepPreviousData } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useChainTime } from '@/api/esplora/hooks'
 import { useBorrowerOffers } from '@/api/indexer/hooks'
 import CoinsIcon from '@/components/icons/CoinsIcon'
 import PlusIcon from '@/components/icons/PlusIcon'
@@ -52,7 +52,7 @@ export default function YourBorrows() {
     error,
     refetch,
   } = useBorrowerOffers(scriptPubkey ?? '', params, { placeholderData: keepPreviousData })
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
 
   const offers = borrowerData?.items ?? []
   const totalOffers = borrowerData?.total ?? 0
@@ -83,7 +83,7 @@ export default function YourBorrows() {
       ) : (
         <OffersTable
           offers={offers}
-          currentBlockHeight={currentBlockHeight}
+          currentTime={currentTime}
           page={page}
           pageCount={pageCount}
           emptyMessage='No borrow offers yet.'

@@ -1,4 +1,4 @@
-import { buttonVariants, Chip, Dropdown, Spinner, Tabs } from '@heroui/react'
+import { buttonVariants, Chip, Dropdown, Tabs } from '@heroui/react'
 import { useState } from 'react'
 
 import CopyButton from '@/components/CopyButton'
@@ -7,19 +7,11 @@ import { UiButton } from '@/components/ui/UiButton'
 import { NETWORK_CONFIG } from '@/constants/network-config'
 import type { PolicyAssetDenomination } from '@/providers/assetDenomination/constants'
 import { useAssetDenomination } from '@/providers/assetDenomination/useAssetDenomination'
-import { useLwk } from '@/providers/lwk/useLwk'
 import { useWallet } from '@/providers/wallet/useWallet'
 import { truncateAddress } from '@/utils/format'
 
-const NETWORK_LABEL: Record<'liquidtestnet' | 'regtest', string> = {
-  liquidtestnet: 'Testnet',
-  regtest: 'Regtest',
-}
-
 export function WalletButton({ isDisabled }: { isDisabled?: boolean } = {}) {
-  const { connectionStatus, syncing, receiveAddress, disconnect, reconnecting, pendingRequest } =
-    useWallet()
-  const { network, isMainnet } = useLwk()
+  const { connectionStatus, syncing, receiveAddress, disconnect, reconnecting } = useWallet()
   const [disconnecting, setDisconnecting] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
@@ -59,11 +51,9 @@ export function WalletButton({ isDisabled }: { isDisabled?: boolean } = {}) {
         </Dropdown.Trigger>
         <Dropdown.Popover placement='bottom end' className='p-4'>
           <div className='flex flex-col gap-3'>
-            {!isMainnet && (
-              <Chip color='warning' variant='soft' size='sm' className='self-start'>
-                {NETWORK_LABEL[network as 'liquidtestnet' | 'regtest']}
-              </Chip>
-            )}
+            <Chip color='warning' variant='soft' size='sm' className='self-start'>
+              Wharfedale
+            </Chip>
             <div className='bg-surface-secondary flex items-center justify-between gap-2 rounded-lg p-1 px-2'>
               <span className='font-mono text-xs'>{truncateAddress(receiveAddress)}</span>
               <CopyButton value={receiveAddress} aria-label='Copy address' />
@@ -114,14 +104,6 @@ export function WalletButton({ isDisabled }: { isDisabled?: boolean } = {}) {
     <>
       {(() => {
         if (syncing && connectionStatus !== 'ready') {
-          if (pendingRequest) {
-            return (
-              <UiButton variant='secondary' onPress={() => setIsConnectModalOpen(true)}>
-                <Spinner size='sm' color='current' aria-hidden />
-                Connecting…
-              </UiButton>
-            )
-          }
           return (
             <UiButton variant='secondary' isDisabled isPending loadingText='Connecting…'>
               Connecting…

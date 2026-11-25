@@ -94,7 +94,7 @@ mod tests {
 
     use super::*;
 
-    const NETWORK: SimplicityNetwork = SimplicityNetwork::LiquidTestnet;
+    const NETWORK: SimplicityNetwork = Simplicitylending_sdk::network::test_network();
 
     fn load_mock() -> Store {
         Store {

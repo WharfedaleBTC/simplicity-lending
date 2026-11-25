@@ -1,20 +1,19 @@
 const fs = require('node:fs')
 const path = require('node:path')
 
-const LWK_PKG = path.join(__dirname, '../lwk/lwk_wasm/pkg/package.json')
+const WASM_PKG = path.join(__dirname, 'src/wasm/pkg/lending_wasm.js')
 
 module.exports = {
   hooks: {
     preResolution() {
-      if (fs.existsSync(LWK_PKG)) return
+      if (fs.existsSync(WASM_PKG)) return
       console.error(
         [
           '',
-          'ERROR: LWK is not built yet.',
+          'ERROR: the WebAssembly module (crates/wasm) is not built yet.',
           '',
           'Fix (run from the repo root):',
-          '  git submodule update --init lwk',
-          '  cd web && pnpm lwk:build',
+          '  make wasm',
           '',
         ].join('\n'),
       )

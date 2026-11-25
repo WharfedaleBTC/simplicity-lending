@@ -11,17 +11,17 @@ import OfferDetailsBody from '@/components/modals/OfferDetailsBody'
 import { useCancelOffer } from '@/hooks/useCancelOffer'
 import { useFormatAmount } from '@/hooks/useFormatAmount'
 import { useStandardTransactionFlow } from '@/hooks/useStandardTransactionFlow'
+import { useChain } from '@/providers/chain/useChain'
+import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
+import { useWallet } from '@/providers/wallet/useWallet'
+import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
+import { SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/script-auth/program'
 import {
   estimateFeeBudgetSats,
   EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY,
   selectFeeUtxos,
   utxoToOutpointString,
-} from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
-import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
-import { useWallet } from '@/providers/wallet/useWallet'
-import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
-import { SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/script-auth/program'
+} from '@/wharfedale/utxo'
 
 const CANCEL_WEIGHT_UNITS =
   LENDING_MAX_WEIGHT_TO_SATISFY.OfferCancellation +
@@ -42,7 +42,7 @@ export default function CancelOfferModal({
   onSuccess,
 }: CancelOfferModalProps) {
   const { syncWallet, getBlindedWalletUtxos, getReceiveAddress, scriptPubkey } = useWallet()
-  const { lwkNetwork } = useLwk()
+  const { chainNetwork: lwkNetwork } = useChain()
   const { cancelOffer } = useCancelOffer()
   const runStandardTransactionFlow = useStandardTransactionFlow()
   const { addPendingTx } = usePendingTransactions()

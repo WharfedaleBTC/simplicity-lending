@@ -3,11 +3,11 @@ import { Link, Outlet } from 'react-router-dom'
 
 import { BellNotificationButton } from '@/components/BellNotificationButton'
 import ArrowSquareOutIcon from '@/components/icons/ArrowSquareOutIcon'
-import { JadeUnlockModal } from '@/components/JadeUnlockModal'
 import OfferActionModal from '@/components/modals/OfferActionModal'
 import { WalletButton } from '@/components/WalletButton'
 import { env } from '@/constants/env'
 import { ExternalLink } from '@/constants/links'
+import { NETWORK_CONFIG } from '@/constants/network-config'
 import { RoutePath } from '@/constants/routes'
 import { useOfferModal } from '@/hooks/useOfferModal'
 
@@ -15,12 +15,7 @@ const NAV = [
   { to: RoutePath.Dashboard, label: 'Dashboard' },
   { to: RoutePath.Borrow, label: 'Borrow' },
   { to: RoutePath.Supply, label: 'Supply' },
-  ...(env.DEV
-    ? [
-        { to: RoutePath.DesignSystem, label: 'System' },
-        { to: RoutePath.Demo, label: 'Demo' },
-      ]
-    : []),
+  ...(env.DEV ? [{ to: RoutePath.DesignSystem, label: 'System' }] : []),
 ]
 
 export default function AppLayout() {
@@ -60,7 +55,6 @@ export default function AppLayout() {
 
         <OfferActionModal offer={lastOffer} isOpen={isOpen} onClose={close} onSuccess={close} />
         <Outlet />
-        <JadeUnlockModal />
 
         <footer className='text-muted flex flex-col gap-3 text-xs'>
           <nav className='flex flex-wrap items-center gap-4 font-medium'>
@@ -69,10 +63,10 @@ export default function AppLayout() {
                 {label}
               </Link>
             ))}
-            {env.VITE_NETWORK === 'liquidtestnet' && (
+            {NETWORK_CONFIG.faucetUrl && (
               <a
                 className='text-accent inline-flex items-center gap-1 hover:underline'
-                href={ExternalLink.Faucet}
+                href={NETWORK_CONFIG.faucetUrl}
                 target='_blank'
                 rel='noopener noreferrer'
               >

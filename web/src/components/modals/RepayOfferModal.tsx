@@ -13,18 +13,18 @@ import { NETWORK_CONFIG } from '@/constants/network-config'
 import { useFormatAmount } from '@/hooks/useFormatAmount'
 import { useRepayOffer } from '@/hooks/useRepayOffer'
 import { useStandardTransactionFlow } from '@/hooks/useStandardTransactionFlow'
+import { useChain } from '@/providers/chain/useChain'
+import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
+import { useWallet } from '@/providers/wallet/useWallet'
+import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
+import { calcInterest } from '@/utils/offers'
 import {
   estimateFeeBudgetSats,
   EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY,
   selectAssetUtxos,
   selectFeeUtxos,
   utxoToOutpointString,
-} from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
-import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
-import { useWallet } from '@/providers/wallet/useWallet'
-import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
-import { calcInterest } from '@/utils/offers'
+} from '@/wharfedale/utxo'
 
 const REPAY_WEIGHT_UNITS =
   LENDING_MAX_WEIGHT_TO_SATISFY.FullRepayment + EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY
@@ -44,7 +44,7 @@ export default function RepayOfferModal({
 }: RepayOfferModalProps) {
   const { principalAsset } = NETWORK_CONFIG
   const { syncWallet, getBlindedWalletUtxos, scriptPubkey, confirmedBalances } = useWallet()
-  const { lwkNetwork } = useLwk()
+  const { chainNetwork: lwkNetwork } = useChain()
   const { repayOffer } = useRepayOffer()
   const runStandardTransactionFlow = useStandardTransactionFlow()
   const { addPendingTx } = usePendingTransactions()

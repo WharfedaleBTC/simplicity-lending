@@ -1,16 +1,16 @@
 use lending_contracts::programs::issuance_factory::IssuanceFactory;
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
 use lending_contracts::utils::get_random_seed;
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{
     FinalTransaction, PartialInput, PartialOutput, RequiredSignature, UTXO,
 };
 
 use super::setup::setup_issuance_factory;
 
 fn setup_default_assets_issuance(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     ft: &mut FinalTransaction,
     issuing_utxos_count: u8,
     reissuance_flags: u64,
@@ -26,10 +26,7 @@ fn setup_default_assets_issuance(
 
     let auth_nft_utxo = signer.get_utxos_asset(factory_asset_id)?[0].clone();
 
-    ft.add_input(
-        PartialInput::new(auth_nft_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(auth_nft_utxo), RequiredSignature::KeyPath);
     ft.add_output(PartialOutput::new(
         signer.get_address().script_pubkey(),
         1,
@@ -39,10 +36,9 @@ fn setup_default_assets_issuance(
     Ok((issuance_factory, issuance_factory_utxo))
 }
 
-#[simplex::test]
-fn issues_new_assets_without_reissuance_tokens_from_the_0_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn issues_new_assets_without_reissuance_tokens_from_the_0_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let signer = context.get_default_signer();
 
     let mut ft = FinalTransaction::new();
@@ -67,7 +63,7 @@ fn issues_new_assets_without_reissuance_tokens_from_the_0_output(
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -86,10 +82,9 @@ fn issues_new_assets_without_reissuance_tokens_from_the_0_output(
     Ok(())
 }
 
-#[simplex::test]
-fn issues_new_assets_without_reissuance_tokens_from_the_2_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn issues_new_assets_without_reissuance_tokens_from_the_2_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let alice = context.get_default_signer();
     let bob = context.random_signer();
 
@@ -138,12 +133,12 @@ fn issues_new_assets_without_reissuance_tokens_from_the_2_output(
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(first_policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     let third_issuance_details = ft.add_issuance_input(
         PartialInput::new(second_policy_utxo),
         IssuanceInput::new_issuance(third_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -169,10 +164,9 @@ fn issues_new_assets_without_reissuance_tokens_from_the_2_output(
     Ok(())
 }
 
-#[simplex::test]
-fn issues_new_assets_with_reissuance_tokens_from_the_0_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn issues_new_assets_with_reissuance_tokens_from_the_0_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let signer = context.get_default_signer();
 
     let mut ft = FinalTransaction::new();
@@ -198,7 +192,7 @@ fn issues_new_assets_with_reissuance_tokens_from_the_0_output(
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -225,10 +219,9 @@ fn issues_new_assets_with_reissuance_tokens_from_the_0_output(
     Ok(())
 }
 
-#[simplex::test]
-fn issues_new_assets_with_reissuance_tokens_from_the_2_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn issues_new_assets_with_reissuance_tokens_from_the_2_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let alice = context.get_default_signer();
     let bob = context.random_signer();
 
@@ -279,12 +272,12 @@ fn issues_new_assets_with_reissuance_tokens_from_the_2_output(
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(first_policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     let third_issuance_details = ft.add_issuance_input(
         PartialInput::new(second_policy_utxo),
         IssuanceInput::new_issuance(third_asset_amount, third_inflation_amount, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(

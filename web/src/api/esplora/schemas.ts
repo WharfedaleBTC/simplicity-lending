@@ -104,3 +104,5 @@ export const blockHeightTextSchema = zod
 
 export const feeEstimatesSchema = zod.record(zod.string(), zod.number())
 export type FeeEstimates = zod.infer<typeof feeEstimatesSchema>
+
+export const blockTimestampSchema = zod.object({ timestamp: zod.number() }).passthrough()

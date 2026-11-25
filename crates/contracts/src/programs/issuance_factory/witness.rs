@@ -1,4 +1,4 @@
-use simplex::either::Either::{Left, Right};
+use lending_sdk::either::Either::{Left, Right};
 
 use crate::artifacts::issuance_factory::derived_issuance_factory::IssuanceFactoryWitness;
 

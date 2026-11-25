@@ -2,7 +2,7 @@
 name = "lending-cli"
 version = "0.1.0"
 edition = "2024"
-description = "Simplicity Lending helper CLI for Liquid testnet"
+description = "Simplicity Lending helper CLI for Wharfedale"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 publish = false
@@ -18,7 +18,7 @@ workspace = true
 thiserror = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
-smplx-std = { workspace = true }
+lending-sdk = { path = "../sdk" }
 
 anyhow = "1"
 dotenvy = "0.15"

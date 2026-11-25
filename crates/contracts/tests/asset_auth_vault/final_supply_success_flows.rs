@@ -1,10 +1,10 @@
 use lending_contracts::programs::asset_auth_vault::{
     ActiveAssetAuthVault, ActiveAssetAuthVaultParameters, FinalizedAssetAuthVaultParameters,
 };
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::simplicityhl::elements::Script;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Script;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::{
     check_vault_amount, issue_auth_assets, make_confidential, prepare_vault_asset,
@@ -12,7 +12,7 @@ use super::setup::{
 };
 
 fn default_final_vault_supplying_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     with_supplier_asset_burn: bool,
 ) -> anyhow::Result<(ActiveAssetAuthVault, ActiveAssetAuthVaultParameters)> {
     let (supplier_asset_id, keeper_asset_id) = issue_auth_assets(context, 1, 1)?;
@@ -38,10 +38,9 @@ fn default_final_vault_supplying_setup(
     Ok((asset_auth_vault, active_vault_parameters))
 }
 
-#[simplex::test]
-fn final_supply_succeeds_with_explicit_input_without_auth_burn(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_succeeds_with_explicit_input_without_auth_burn() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -65,7 +64,7 @@ fn final_supply_succeeds_with_explicit_input_without_auth_burn(
     ));
     ft.add_input(
         PartialInput::new(supplier_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let expected_vault_balance = asset_auth_vault_utxo.explicit_amount() + amount_to_supply;
@@ -80,7 +79,7 @@ fn final_supply_succeeds_with_explicit_input_without_auth_burn(
 
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     signer.broadcast(&ft)?.wait()?;
@@ -90,10 +89,9 @@ fn final_supply_succeeds_with_explicit_input_without_auth_burn(
     Ok(())
 }
 
-#[simplex::test]
-fn final_supply_succeeds_with_explicit_input_and_auth_burn(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_succeeds_with_explicit_input_and_auth_burn() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -116,7 +114,7 @@ fn final_supply_succeeds_with_explicit_input_and_auth_burn(
     ));
     ft.add_input(
         PartialInput::new(supplier_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let expected_vault_balance = asset_auth_vault_utxo.explicit_amount() + amount_to_supply;
@@ -131,7 +129,7 @@ fn final_supply_succeeds_with_explicit_input_and_auth_burn(
 
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     signer.broadcast(&ft)?.wait()?;
@@ -141,10 +139,9 @@ fn final_supply_succeeds_with_explicit_input_and_auth_burn(
     Ok(())
 }
 
-#[simplex::test]
-fn final_supply_succeeds_with_confidential_input(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn final_supply_succeeds_with_confidential_input() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -166,11 +163,11 @@ fn final_supply_succeeds_with_confidential_input(
 
     ft.add_input(
         PartialInput::new(conf_utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_input(
         PartialInput::new(supplier_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let expected_vault_balance = asset_auth_vault_utxo.explicit_amount() + amount_to_supply;

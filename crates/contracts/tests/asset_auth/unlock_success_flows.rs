@@ -1,15 +1,14 @@
 use lending_contracts::programs::asset_auth::AssetAuthWitnessParams;
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::simplicityhl::elements::Script;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Script;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::setup_asset_auth;
 
-#[simplex::test]
-fn unlocks_without_burn_with_one_explicit_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn unlocks_without_burn_with_one_explicit_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -25,7 +24,7 @@ fn unlocks_without_burn_with_one_explicit_output(
 
     asset_auth.attach_unlocking(&mut ft, asset_auth_utxo.clone(), asset_auth_witness_params);
 
-    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::NativeEcdsa);
+    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::KeyPath);
 
     ft.add_output(PartialOutput::new(
         signer.get_address().script_pubkey(),
@@ -43,10 +42,9 @@ fn unlocks_without_burn_with_one_explicit_output(
     Ok(())
 }
 
-#[simplex::test]
-fn unlocks_without_burn_with_multiple_explicit_outputs(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn unlocks_without_burn_with_multiple_explicit_outputs() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -62,7 +60,7 @@ fn unlocks_without_burn_with_multiple_explicit_outputs(
 
     asset_auth.attach_unlocking(&mut ft, asset_auth_utxo.clone(), asset_auth_witness_params);
 
-    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::NativeEcdsa);
+    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::KeyPath);
 
     ft.add_output(PartialOutput::new(
         signer.get_address().script_pubkey(),
@@ -90,10 +88,9 @@ fn unlocks_without_burn_with_multiple_explicit_outputs(
     Ok(())
 }
 
-#[simplex::test]
-fn unlocks_without_burn_with_confidential_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn unlocks_without_burn_with_confidential_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -109,7 +106,7 @@ fn unlocks_without_burn_with_confidential_output(
 
     asset_auth.attach_unlocking(&mut ft, asset_auth_utxo.clone(), asset_auth_witness_params);
 
-    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::NativeEcdsa);
+    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::KeyPath);
 
     ft.add_output(
         PartialOutput::new(
@@ -130,8 +127,9 @@ fn unlocks_without_burn_with_confidential_output(
     Ok(())
 }
 
-#[simplex::test]
-fn unlocks_with_burn_with_one_explicit_output(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn unlocks_with_burn_with_one_explicit_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -147,7 +145,7 @@ fn unlocks_with_burn_with_one_explicit_output(context: simplex::TestContext) -> 
 
     asset_auth.attach_unlocking(&mut ft, asset_auth_utxo.clone(), asset_auth_witness_params);
 
-    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::NativeEcdsa);
+    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::KeyPath);
 
     ft.add_output(PartialOutput::new(
         signer.get_address().script_pubkey(),
@@ -165,10 +163,9 @@ fn unlocks_with_burn_with_one_explicit_output(context: simplex::TestContext) -> 
     Ok(())
 }
 
-#[simplex::test]
-fn unlocks_with_burn_with_multiple_explicit_outputs(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn unlocks_with_burn_with_multiple_explicit_outputs() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -184,7 +181,7 @@ fn unlocks_with_burn_with_multiple_explicit_outputs(
 
     asset_auth.attach_unlocking(&mut ft, asset_auth_utxo.clone(), asset_auth_witness_params);
 
-    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::NativeEcdsa);
+    ft.add_input(PartialInput::new(auth_utxo), RequiredSignature::KeyPath);
 
     let first_locked_output_amount = asset_auth_utxo.explicit_amount() / 2;
     let second_locked_output_amount =

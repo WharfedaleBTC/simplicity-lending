@@ -1,24 +1,10 @@
-import type { AssetId, OutPoint } from 'lwk_wasm'
-
-export type WalletType = 'Wpkh' | 'ShWpkh'
-
-/** Default wallet type used when kicking off the connect flow. */
-export const DEFAULT_WALLET_TYPE: WalletType = 'Wpkh'
-
-/** Raw JADE_STATE values from getVersion() */
-export type JadeConnectionState = 'LOCKED' | 'READY' | 'UNINIT' | 'TEMP'
-
-export interface JadeVersionInfo {
-  state: JadeConnectionState
-  /** EFUSEMAC — unique hardware identifier */
-  efuseMac: string
-  version: string
-}
+import type { AssetId, OutPoint } from '@/wharfedale/types'
 
 export type ConnectionStatus = 'disconnected' | 'locked' | 'ready'
 
 export interface WalletCoin {
   outpoint(): OutPoint
+  /** Undefined while unconfirmed. */
   height(): number | undefined
   unblinded(): { asset(): AssetId; value(): bigint }
 }

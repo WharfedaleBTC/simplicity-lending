@@ -1,4 +1,3 @@
-import type { Transaction } from 'lwk_wasm'
 import { sources } from 'virtual:simplicity-sources'
 
 import { extractOpReturnPayload } from '@/utils/opReturn'
@@ -13,6 +12,7 @@ import {
   type Uint32,
   type Uint64,
 } from '@/utils/uint'
+import type { Transaction } from '@/wharfedale/types'
 
 const PROGRAM_ID_LENGTH = 4
 const PRINCIPAL_ASSET_ID_OFFSET = PROGRAM_ID_LENGTH

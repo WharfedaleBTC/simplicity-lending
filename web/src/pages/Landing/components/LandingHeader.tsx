@@ -6,8 +6,8 @@ import { Link } from 'react-router-dom'
 import ArrowRightIcon from '@/components/icons/ArrowRightIcon'
 import ArrowSquareOutIcon from '@/components/icons/ArrowSquareOutIcon'
 import MenuIcon from '@/components/icons/MenuIcon'
-import { env } from '@/constants/env'
 import { ExternalLink } from '@/constants/links'
+import { NETWORK_CONFIG } from '@/constants/network-config'
 import { RoutePath } from '@/constants/routes'
 
 const SCROLL_ENTER_THRESHOLD = 40
@@ -28,8 +28,8 @@ export function LandingHeader() {
 
   const menuLinks = useMemo(
     () =>
-      env.VITE_NETWORK === 'liquidtestnet'
-        ? [...MENU_LINKS, { label: 'Get test funds', href: ExternalLink.Faucet }]
+      NETWORK_CONFIG.faucetUrl
+        ? [...MENU_LINKS, { label: 'Get test funds', href: NETWORK_CONFIG.faucetUrl }]
         : MENU_LINKS,
     [],
   )
@@ -93,7 +93,7 @@ export function LandingHeader() {
               About Simplicity
               <ArrowSquareOutIcon className='size-4' />
             </a>
-            {env.VITE_NETWORK === 'liquidtestnet' && (
+            {NETWORK_CONFIG.faucetUrl && (
               <a
                 className={`${buttonVariants({ variant: 'outline' })} hidden sm:inline-flex`}
                 style={
@@ -104,7 +104,7 @@ export function LandingHeader() {
                     '--button-bg-pressed': 'var(--accent-soft-hover)',
                   } as CSSProperties
                 }
-                href={ExternalLink.Faucet}
+                href={NETWORK_CONFIG.faucetUrl}
                 target='_blank'
                 rel='noopener noreferrer'
               >

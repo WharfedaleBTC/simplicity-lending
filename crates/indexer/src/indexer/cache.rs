@@ -1,4 +1,4 @@
-use simplex::simplicityhl::elements::OutPoint;
+use lending_sdk::elements::OutPoint;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -94,9 +94,10 @@ impl<V> Default for WatchCache<V> {
 #[cfg(test)]
 mod tests {
     use super::WatchCache;
+    use lending_sdk::hex::FromSlice;
 
     use crate::models::{ActiveUtxo, UtxoData, UtxoType};
-    use simplex::simplicityhl::elements::{OutPoint, Txid, hashes::Hash};
+    use lending_sdk::elements::{OutPoint, Txid};
 
     fn outpoint(txid_byte: u8, vout: u32) -> OutPoint {
         OutPoint {

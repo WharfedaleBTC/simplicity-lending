@@ -1,6 +1,6 @@
-use lending_contracts::programs::program::SimplexProgram;
-use simplex::signer::Signer;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_contracts::programs::program::SimplicityProgram;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use lending_contracts::programs::lending::{
     LendingOffer, LendingOfferParameters, OfferParameters, OfferRepaymentPhase,
@@ -13,7 +13,7 @@ use super::setup::{
 };
 
 fn default_full_repayment_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     lender: &Signer,
 ) -> anyhow::Result<(LendingOffer, LendingOfferParameters)> {
     let provider = context.get_default_provider();
@@ -23,12 +23,13 @@ fn default_full_repayment_setup(
     let issuance_factory = setup_issuance_factory(context)?;
 
     let principal_asset_amount = 200000;
-    let current_height = provider.fetch_tip_height()?;
+    // Loans end at a unix time (an hour from the tip block).
+    let current_time = u32::try_from(provider.fetch_tip_timestamp()?)?;
 
     let offer_parameters = OfferParameters {
         collateral_amount: 3000,
         principal_amount: 10000,
-        loan_expiration_time: current_height + 60,
+        loan_expiration_time: current_time + 3600,
         principal_interest_rate: 1000,
     };
 
@@ -52,7 +53,7 @@ fn default_full_repayment_setup(
 }
 
 fn check_finalized_vaults(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     offer: &LendingOffer,
 ) -> anyhow::Result<()> {
     let lender_vault_utxo = get_lender_vault_utxo(context, offer)?;
@@ -77,10 +78,9 @@ fn check_finalized_vaults(
     Ok(())
 }
 
-#[simplex::test]
-fn full_repayment_succeeds_in_no_repayments_phase(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn full_repayment_succeeds_in_no_repayments_phase() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -111,14 +111,14 @@ fn full_repayment_succeeds_in_no_repayments_phase(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     offer.attach_full_repayment(&mut ft, active_offer_utxo, None, None);
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -144,10 +144,9 @@ fn full_repayment_succeeds_in_no_repayments_phase(
     Ok(())
 }
 
-#[simplex::test]
-fn full_repayment_succeeds_in_repaying_offer_fees_phase(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn full_repayment_succeeds_in_repaying_offer_fees_phase() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -191,7 +190,7 @@ fn full_repayment_succeeds_in_repaying_offer_fees_phase(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     offer.attach_full_repayment(
@@ -203,7 +202,7 @@ fn full_repayment_succeeds_in_repaying_offer_fees_phase(
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -227,10 +226,9 @@ fn full_repayment_succeeds_in_repaying_offer_fees_phase(
     Ok(())
 }
 
-#[simplex::test]
-fn full_repayment_succeeds_in_repaying_principal_phase(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn full_repayment_succeeds_in_repaying_principal_phase() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -274,7 +272,7 @@ fn full_repayment_succeeds_in_repaying_principal_phase(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     offer.attach_full_repayment(
@@ -286,7 +284,7 @@ fn full_repayment_succeeds_in_repaying_principal_phase(
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(

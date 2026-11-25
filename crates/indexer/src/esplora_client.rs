@@ -1,15 +1,13 @@
 use std::{num::ParseIntError, time::Duration};
 
-use reqwest::{Client, ClientBuilder, Response};
-use simplex::{
-    provider::{EsploraProvider, SimplicityNetwork},
-    simplicityhl::elements::{Transaction, Txid, encode},
+use lending_sdk::{
+    Network,
+    elements::{AssetId, BlockHash, Transaction, Txid, encode},
 };
+use reqwest::{Client, ClientBuilder, Response};
 
-use crate::configuration::Network;
-
-/// Default Esplora API base URL for Liquid testnet.
-pub const DEFAULT_BASE_URL: &str = "https://blockstream.info/liquidtestnet/api";
+/// Default node URL: a Wharfedale node serves its Esplora API and JSON-RPC on one address.
+pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18443";
 
 /// Default request timeout in seconds.
 pub const DEFAULT_TIMEOUT_SECS: u64 = 10;
@@ -19,7 +17,7 @@ pub const DEFAULT_TIMEOUT_SECS: u64 = 10;
 pub struct EsploraClient {
     base_url: String,
     client: Client,
-    network: SimplicityNetwork,
+    network: Network,
 }
 
 impl Default for EsploraClient {
@@ -45,24 +43,42 @@ impl EsploraClient {
         Self {
             base_url: base_url.trim_end_matches('/').to_owned(),
             client,
-            network: SimplicityNetwork::LiquidTestnet,
+            // Placeholder until `with_network`: decoding offers doesn't depend on it.
+            network: Network::new(
+                AssetId::from_byte_array([0; 32]),
+                BlockHash::from_byte_array([0; 32]),
+            ),
         }
     }
 
-    pub fn with_network(self, network: &str) -> Result<Self, String> {
-        let simplicity_network = Network::try_from(network.to_string())?;
-        Ok(Self {
-            base_url: self.base_url,
-            client: self.client,
-            network: simplicity_network.into(),
-        })
+    #[must_use]
+    pub fn with_network(self, network: Network) -> Self {
+        Self { network, ..self }
     }
 
-    pub fn to_simplex_provider(&self) -> EsploraProvider {
-        EsploraProvider::new(self.base_url.clone(), self.network)
+    /// The chain's fee asset and genesis hash, from the node's `getblockchaininfo` (JSON-RPC
+    /// at the same URL).
+    pub async fn fetch_network(&self) -> Result<Network, EsploraClientError> {
+        let body = serde_json::json!({ "method": "getblockchaininfo", "params": [], "id": 1 });
+        let response = self.client.post(&self.base_url).json(&body).send().await?;
+        let response = Self::handle_response(response).await?;
+        let reply: serde_json::Value = response.json().await?;
+        let info = &reply["result"];
+        let field = |name: &str| {
+            info[name].as_str().map(str::to_owned).ok_or_else(|| {
+                EsploraClientError::Parsing(format!("getblockchaininfo: no {name}: {reply}"))
+            })
+        };
+        let fee_asset = field("fee_asset")?
+            .parse::<AssetId>()
+            .map_err(|e| EsploraClientError::Parsing(format!("fee_asset: {e}")))?;
+        let genesis = field("genesis_hash")?
+            .parse::<BlockHash>()
+            .map_err(|e| EsploraClientError::Parsing(format!("genesis_hash: {e}")))?;
+        Ok(Network::new(fee_asset, genesis))
     }
 
-    pub fn network(&self) -> SimplicityNetwork {
+    pub fn network(&self) -> Network {
         self.network
     }
 
@@ -130,12 +146,12 @@ impl EsploraClient {
     }
 
     pub async fn get_tx_by_id(&self, tx_id: Txid) -> Result<Transaction, EsploraClientError> {
-        let url = format!("{}/tx/{tx_id}/raw", self.base_url);
+        let url = format!("{}/tx/{tx_id}/hex", self.base_url);
 
         let response = self.client.get(url).send().await?;
         let response = Self::handle_response(response).await?;
 
-        let bytes = response.bytes().await?;
+        let bytes = hex::decode(response.text().await?.trim())?;
         let tx: Transaction = encode::deserialize(&bytes)?;
 
         Ok(tx)
@@ -161,7 +177,7 @@ pub enum EsploraClientError {
     #[error("invalid transaction hex: {0}")]
     InvalidTransactionHex(#[from] hex::FromHexError),
     #[error("failed to deserialize transaction: {0}")]
-    TransactionDeserialize(#[from] simplex::simplicityhl::simplicity::elements::encode::Error),
+    TransactionDeserialize(#[from] lending_sdk::elements::encode::Error),
     #[error("parsing error: {0}")]
     Parsing(String),
     #[error("api error: status {0}, body {1}")]
@@ -173,7 +189,6 @@ pub enum EsploraClientError {
 #[cfg(test)]
 mod tests {
     use super::{DEFAULT_BASE_URL, EsploraClient};
-    use simplex::provider::{ProviderTrait, SimplicityNetwork};
 
     #[test]
     fn new_uses_default_base_url_without_trailing_slash() {
@@ -185,23 +200,5 @@ mod tests {
     fn with_base_url_trims_trailing_slash() {
         let client = EsploraClient::with_base_url("https://example.com/api///");
         assert_eq!(client.base_url, "https://example.com/api");
-    }
-
-    #[test]
-    fn to_simplex_provider_returns_liquid_testnet_provider() {
-        let client = EsploraClient::with_base_url("https://example.com/api");
-        let provider = client.to_simplex_provider();
-
-        assert_eq!(*provider.get_network(), SimplicityNetwork::LiquidTestnet);
-    }
-
-    #[test]
-    fn to_simplex_provider_returns_custom_network() {
-        let client = EsploraClient::with_base_url("https://example.com/api")
-            .with_network("liquid")
-            .unwrap();
-        let provider = client.to_simplex_provider();
-
-        assert_eq!(*provider.get_network(), SimplicityNetwork::Liquid);
     }
 }

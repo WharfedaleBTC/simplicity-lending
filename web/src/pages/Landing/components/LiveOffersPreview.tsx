@@ -6,8 +6,8 @@ import type { OfferStatus } from '@/api/indexer/schemas'
 import ArrowsRotateIcon from '@/components/icons/ArrowsRotateIcon'
 import ChevronDownIcon from '@/components/icons/ChevronDownIcon'
 import ChevronsExpandVerticalIcon from '@/components/icons/ChevronsExpandVerticalIcon'
-import LbtcIcon from '@/components/icons/LbtcIcon'
-import UsdtIcon from '@/components/icons/UsdtIcon'
+import UsdtIcon from '@/components/icons/TestAssetIcon'
+import LbtcIcon from '@/components/icons/WbtcIcon'
 import { OfferStatusChip } from '@/components/OfferStatusChip'
 import { OfferStatusFilter } from '@/components/OfferStatusFilter'
 import { UiPagination } from '@/components/ui/UiPagination'
@@ -114,7 +114,7 @@ export function LiveOffersPreview() {
           <Table.Content aria-label='Most recent borrow offers'>
             <Table.Header>
               <Table.Column id='collateral' isRowHeader className='pl-9'>
-                Collateral (LBTC)
+                Collateral (WBTC)
               </Table.Column>
               <Table.Column id='loan' className='pl-9'>
                 Loan Amount (USDT)
@@ -161,7 +161,7 @@ export function LiveOffersPreview() {
                   <Table.Cell className='pl-9'>
                     <span className='flex items-center gap-1.5 tabular-nums'>
                       <LbtcIcon className='size-4' />
-                      {offer.collateral} LBTC
+                      {offer.collateral} WBTC
                     </span>
                   </Table.Cell>
                   <Table.Cell className='pl-9'>

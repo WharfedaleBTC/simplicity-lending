@@ -1,6 +1,6 @@
-use simplex::{
+use lending_sdk::{
+    Network,
     program::Program,
-    provider::SimplicityNetwork,
     transaction::{FinalTransaction, UTXO},
 };
 
@@ -8,7 +8,7 @@ use crate::artifacts::asset_auth_vault::AssetAuthVaultProgram;
 use crate::programs::asset_auth_vault::{
     ActiveAssetAuthVaultParameters, AssetAuthVaultWitnessBranch, FinalizedAssetAuthVaultParameters,
 };
-use crate::programs::program::SimplexProgram;
+use crate::programs::program::SimplicityProgram;
 
 pub struct ActiveAssetAuthVault {
     program: AssetAuthVaultProgram,
@@ -198,12 +198,12 @@ impl FinalizedAssetAuthVault {
     }
 }
 
-impl SimplexProgram for ActiveAssetAuthVault {
+impl SimplicityProgram for ActiveAssetAuthVault {
     fn get_program(&self) -> &Program {
         self.program.as_ref()
     }
 
-    fn get_network(&self) -> &SimplicityNetwork {
+    fn get_network(&self) -> &Network {
         &self.parameters.network
     }
 
@@ -212,7 +212,7 @@ impl SimplexProgram for ActiveAssetAuthVault {
     }
 }
 
-impl SimplexProgram for FinalizedAssetAuthVault {
+impl SimplicityProgram for FinalizedAssetAuthVault {
     fn get_program_source_code() -> &'static str {
         AssetAuthVaultProgram::SOURCE
     }
@@ -221,7 +221,7 @@ impl SimplexProgram for FinalizedAssetAuthVault {
         self.program.as_ref()
     }
 
-    fn get_network(&self) -> &SimplicityNetwork {
+    fn get_network(&self) -> &Network {
         &self.parameters.network
     }
 }

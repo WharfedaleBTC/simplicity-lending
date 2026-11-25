@@ -1,8 +1,8 @@
-use simplex::simplicityhl::elements::AssetId;
+use lending_sdk::elements::AssetId;
 
 use crate::programs::{
     lending::{LendingOffer, LendingOfferError, OfferParameters},
-    program::{CreationMetadata, MetadataProgram, PROGRAM_ID_LENGTH, ProgramId, SimplexProgram},
+    program::{CreationMetadata, MetadataProgram, PROGRAM_ID_LENGTH, ProgramId, SimplicityProgram},
 };
 
 const LENDING_OFFER_CREATION_METADATA_LENGTH: usize = 50;
@@ -72,7 +72,7 @@ impl CreationMetadata for LendingOfferCreationMetadata {
 
         Ok(Self {
             program_id,
-            principal_asset_id: AssetId::from_slice(principal_asset_id_raw)?,
+            principal_asset_id: AssetId::from_byte_array(principal_asset_id_raw.try_into()?),
             principal_amount,
             loan_expiration_time,
             principal_interest_rate,
@@ -82,7 +82,7 @@ impl CreationMetadata for LendingOfferCreationMetadata {
     fn encode(&self) -> Vec<u8> {
         let mut op_return_data = Vec::with_capacity(Self::DATA_LENGTH);
         op_return_data.extend_from_slice(&self.program_id);
-        op_return_data.extend_from_slice(&self.principal_asset_id.into_inner().0);
+        op_return_data.extend_from_slice(&self.principal_asset_id.to_byte_array());
         op_return_data.extend_from_slice(&self.principal_amount.to_le_bytes());
         op_return_data.extend_from_slice(&self.loan_expiration_time.to_le_bytes());
         op_return_data.extend_from_slice(&self.principal_interest_rate.to_le_bytes());

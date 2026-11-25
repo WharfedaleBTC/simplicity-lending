@@ -1,0 +1,16 @@
+# Applies to builds using docker/indexer.Dockerfile (context = the parent of simplicity-lending/).
+**/target
+**/.git
+**/node_modules
+**/dist
+simplicity-lending/lwk
+simplicity-lending/web/src/wasm/pkg
+simplicity-lending/web/public/config.json
+wharfedale/docs
+wharfedale-web
+wharfedale-sdk-ts
+demo-prod
+malachite/docs
+malachite/specs
+malachite/terraform
+malachite/assets

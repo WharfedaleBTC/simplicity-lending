@@ -127,7 +127,7 @@ export function ComparisonTable() {
                 <th className='text-muted p-5 text-left text-xs font-bold'>Compared on</th>
                 <th className='bg-accent text-accent-foreground p-5 text-left'>
                   <p className='text-[15px] font-bold'>Simplicity Bitcoin Lending</p>
-                  <p className='text-xs font-normal opacity-85'>Bitcoin-native, on Liquid</p>
+                  <p className='text-xs font-normal opacity-85'>Bitcoin-native, on Wharfedale</p>
                 </th>
                 <th className='border-l border-[#ebebec] p-5 text-left'>
                   <p className='text-foreground text-[15px] font-bold'>CeFi lending</p>

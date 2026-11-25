@@ -1,0 +1,153 @@
+# Tests the lending workspace and the web app; on master and on version tags publishes the
+# images ghcr.io/wharfedalebtc/lending-indexer and ghcr.io/wharfedalebtc/lending-web.
+#
+# The workspace builds against sibling checkouts, laid out as locally:
+#   wharfedale/          WharfedaleBTC/wharfedale at WHARFEDALE_REF (the node: its ledger crate
+#                        validates the contract tests' transactions)
+#   wharfedale-sdk-rs/   WharfedaleBTC/wharfedale-sdk-rs at SDK_RS_REF
+#   malachite/           WharfedaleBTC/malachite at MALACHITE_REF (the node workspace's fork)
+name: ci
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WHARFEDALE_REF: master
+  SDK_RS_REF: master
+  MALACHITE_REF: wharfedale/mempool-channel
+  SQLX_OFFLINE: "true"
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: lending-indexer
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { path: simplicity-lending, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/wharfedale, ref: "${{ env.WHARFEDALE_REF }}", path: wharfedale, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/wharfedale-sdk-rs, ref: "${{ env.SDK_RS_REF }}", path: wharfedale-sdk-rs, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/malachite, ref: "${{ env.MALACHITE_REF }}", path: malachite, persist-credentials: false }
+
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt && rustup default stable
+
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            simplicity-lending/target
+          key: lending-${{ runner.os }}-${{ hashFiles('simplicity-lending/Cargo.lock') }}
+          restore-keys: lending-${{ runner.os }}-
+
+      - name: Format
+        working-directory: simplicity-lending
+        run: cargo fmt -p lending-sdk -p lending-contracts -p lending-indexer -p lending-session -p lending-cli -p lending-wasm -p lending-e2e --check
+
+      - name: Clippy
+        working-directory: simplicity-lending
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Tests
+        working-directory: simplicity-lending
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/lending-indexer
+        run: cargo test --workspace --locked
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { path: simplicity-lending, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/wharfedale, ref: "${{ env.WHARFEDALE_REF }}", path: wharfedale, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/wharfedale-sdk-rs, ref: "${{ env.SDK_RS_REF }}", path: wharfedale-sdk-rs, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/malachite, ref: "${{ env.MALACHITE_REF }}", path: malachite, persist-credentials: false }
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: WebAssembly module
+        run: |
+          docker buildx build -f simplicity-lending/docker/web.Dockerfile --target wasm-pkg \
+            --cache-from type=gha,scope=lending-wasm --cache-to type=gha,scope=lending-wasm,mode=max \
+            --output type=local,dest=simplicity-lending/web/src/wasm/pkg .
+
+      - name: Lint and build
+        working-directory: simplicity-lending/web
+        run: |
+          corepack enable && corepack prepare pnpm@10.33.0 --activate
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm lint
+          pnpm format:check
+          pnpm build
+
+  images:
+    if: github.event_name != 'pull_request'
+    needs: [rust, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { name: lending-indexer, file: simplicity-lending/docker/indexer.Dockerfile }
+          - { name: lending-web, file: simplicity-lending/docker/web.Dockerfile }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { path: simplicity-lending, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/wharfedale, ref: "${{ env.WHARFEDALE_REF }}", path: wharfedale, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/wharfedale-sdk-rs, ref: "${{ env.SDK_RS_REF }}", path: wharfedale-sdk-rs, persist-credentials: false }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: WharfedaleBTC/malachite, ref: "${{ env.MALACHITE_REF }}", path: malachite, persist-credentials: false }
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/wharfedalebtc/${{ matrix.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max

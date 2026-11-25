@@ -7,13 +7,17 @@ V2 frontend scaffold for the Simplicity Lending protocol.
 - Node.js 20.19+
 - pnpm 10+
 
-## Environment Variables
+## Configuration
 
-Copy `.env.example` to `.env` and adjust as needed.
+Build time (`.env`): `VITE_API_URL` (indexer API, default `/api`), `VITE_ESPLORA_BASE_URL` (a
+Wharfedale node's Esplora API, default `/esplora`), `VITE_DEMO_MODE` (short loan terms).
 
-- `VITE_API_URL` - Base URL for the indexer API.
-- `VITE_ESPLORA_BASE_URL` - Base URL for Esplora.
-- `VITE_NETWORK` - Network name (`liquid`, `liquidtestnet`, `regtest`).
+Runtime: `/config.json`, the deployment's assets (WBTC, USDT, the protocol fee keeper), prices
+and the faucet link. In Docker the setup job writes it; for `pnpm dev` run `make dev-config`
+in the repository root.
+
+Prices (for LTV and USD figures only): the browser fetches WBTC's from Coinbase's public BTC/USD
+spot price every 30 seconds and falls back to the config's when that fails.
 
 ## Stack
 
@@ -27,28 +31,14 @@ Copy `.env.example` to `.env` and adjust as needed.
 
 ## Install
 
-The app uses [LWK](https://github.com/Blockstream/lwk) from the `lwk` git submodule, pinned to one commit. Run from the repo root:
+The app runs the lending transaction layer (`crates/wasm`) as WebAssembly. From the repository
+root:
 
 ```bash
-git submodule update --init lwk
-git config submodule.recurse true
-web/scripts/build-lwk.sh
-cd web && pnpm install
+make wasm          # builds web/src/wasm/pkg in Docker
+cd web && pnpm install --ignore-scripts
+pnpm dev           # with `make run` up: proxies /api and /esplora (see vite.config.ts)
 ```
-
-`submodule.recurse` makes `git pull` update `lwk` too. If LWK changes after a pull, `pnpm dev` stops and tells you to run `pnpm lwk:build`.
-
-The build needs Rust ([rustup](https://rustup.rs)), `cargo install wasm-pack --locked`, and on macOS `brew install llvm`. The script tells you if something is missing.
-
-## Update LWK
-
-```bash
-cd lwk && git fetch origin && git checkout <commit> && cd ..
-git add lwk
-cd web && pnpm lwk:build
-```
-
-Then test the app and commit `lwk`. Pin a commit, don't follow a branch: `PsetBuilder` is experimental and can change.
 
 ## Run
 
@@ -85,4 +75,5 @@ pnpm lint
 
 ## Docker
 
-See [`deployment/`](../deployment/README.md) for the Docker build and compose stack.
+`docker/web.Dockerfile` (the WebAssembly module, this app, nginx); `make run` in the repository
+root starts it with the indexer.

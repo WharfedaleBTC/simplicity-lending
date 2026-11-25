@@ -24,7 +24,6 @@ import { useFeeRateSatPerKvb } from '@/hooks/useFeeRate'
 import { useFreezeViewWhileOpen } from '@/hooks/useFreezeViewWhileOpen'
 import { type PolicyAssetUtxo, usePolicyAssetUtxos } from '@/hooks/usePolicyAssetUtxos'
 import { useStandardTransactionFlow } from '@/hooks/useStandardTransactionFlow'
-import { estimateFeeBudgetSats, EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY } from '@/lwk/utxo'
 import type { PolicyAssetDenomination } from '@/providers/assetDenomination/constants'
 import { useAssetDenomination } from '@/providers/assetDenomination/useAssetDenomination'
 import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
@@ -32,7 +31,7 @@ import { useWallet } from '@/providers/wallet/useWallet'
 import { ISSUANCE_FACTORY_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/issuance-factory/program'
 import { toBigintAmount } from '@/utils/bigint'
 import { formatAmount, formatFeeReserve, formatUsd } from '@/utils/format'
-import { computeApr, computeLtv, computeProtocolFee, daysToBlocks, feeToBps } from '@/utils/offers'
+import { computeApr, computeLtv, computeProtocolFee, daysToSeconds, feeToBps } from '@/utils/offers'
 import {
   formatPolicyAssetDisplay,
   formatPolicyAssetInputValue,
@@ -40,6 +39,7 @@ import {
   parsePolicyAssetInput,
 } from '@/utils/policyAssetDenomination'
 import { selectByLargestFirst } from '@/utils/utxo'
+import { estimateFeeBudgetSats, EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY } from '@/wharfedale/utxo'
 
 import { MAX_LTV } from '../helpers'
 import LoanMetricsSummary from './LoanMetricsSummary'
@@ -334,7 +334,7 @@ export default function CreateBorrowOfferModal({
   const feeBase = toBigintAmount(values.fee, principalAsset.decimals)
   const bps = feeToBps(feeBase, principalBase)
   const protocolFee = `${formatAmount(computeProtocolFee(feeBase), principalAsset.decimals)} ${principalAsset.symbol}`
-  const loanDurationBlocks = values.termDays ? daysToBlocks(values.termDays) : 0
+  const loanDurationSeconds = values.termDays ? daysToSeconds(values.termDays) : 0
 
   const confirmedBalance = utxos.reduce((sum, utxo) => sum + utxo.value, 0n)
   const collateralFiat = formatUsd(collateralBase, collateralAsset.decimals, collateralUsd)
@@ -367,8 +367,8 @@ export default function CreateBorrowOfferModal({
         principalAssetId: NETWORK_CONFIG.principalAsset.id,
         principalAmount: principalBase,
         principalInterestRate: bps,
-        loanDurationBlocks,
-        protocolFeeKeeperAssetId: NETWORK_CONFIG.principalAsset.id,
+        loanDurationSeconds,
+        protocolFeeKeeperAssetId: NETWORK_CONFIG.protocolFeeAsset.id,
       })
     })
 
@@ -383,7 +383,7 @@ export default function CreateBorrowOfferModal({
     createOffer,
     principalBase,
     bps,
-    loanDurationBlocks,
+    loanDurationSeconds,
     refetchFactory,
   ])
 
@@ -397,7 +397,7 @@ export default function CreateBorrowOfferModal({
       })
     },
   })
-  const apr = computeApr(bps, loanDurationBlocks)
+  const apr = computeApr(bps, loanDurationSeconds)
   const ltv = computeLtv({
     principal: principalBase,
     principalDecimals: principalAsset.decimals,

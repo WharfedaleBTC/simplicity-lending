@@ -1,7 +1,7 @@
-use simplex::{
+use lending_sdk::{
+    Network,
+    elements::{AssetId, LockTime, Script, Sequence, Transaction},
     program::Program,
-    provider::SimplicityNetwork,
-    simplicityhl::elements::{AssetId, LockTime, Script, Sequence, Transaction},
     transaction::{FinalTransaction, PartialInput, PartialOutput, UTXO},
 };
 
@@ -12,7 +12,7 @@ use crate::{
             LendingOfferError, LendingOfferParameters, LendingOfferWitnessBranch, OfferParameters,
             OfferRepaymentPhase,
         },
-        program::{MetadataProgram, SimplexProgram},
+        program::{MetadataProgram, SimplicityProgram},
         script_auth::{ScriptAuth, ScriptAuthWitnessParams},
     },
     utils::op_return_payload,
@@ -94,7 +94,7 @@ impl LendingOffer {
     pub fn try_from_tx(
         tx: &Transaction,
         protocol_fee_keeper_asset_id: AssetId,
-        network: SimplicityNetwork,
+        network: Network,
     ) -> Result<Self, LendingOfferError> {
         if tx.output.len() <= 6 || !tx.output[CREATION_METADATA_OUTPUT_INDEX].is_null_data() {
             return Err(LendingOfferError::NotALendingOfferCreationTx(tx.txid()));
@@ -152,7 +152,7 @@ impl LendingOffer {
 
     pub fn attach_creation(&self, ft: &mut FinalTransaction) {
         if self.is_pending_offer() {
-            let lender_nft_script_auth = ScriptAuth::from_simplex_program(self);
+            let lender_nft_script_auth = ScriptAuth::from_program(self);
 
             lender_nft_script_auth.attach_creation(ft, self.parameters.lender_nft_asset_id, 1);
 
@@ -316,8 +316,9 @@ impl LendingOffer {
     pub fn attach_liquidation(&self, ft: &mut FinalTransaction, active_offer_utxo: UTXO) {
         let current_debt = self.get_current_debt();
 
+        // A unix time: the block that includes the liquidation must be stamped after it.
         let locktime =
-            LockTime::from_height(self.parameters.offer_parameters.loan_expiration_time).unwrap();
+            LockTime::from_consensus(self.parameters.offer_parameters.loan_expiration_time);
 
         let active_offer_input = PartialInput::new(active_offer_utxo)
             .with_sequence(Sequence::ENABLE_LOCKTIME_NO_RBF)
@@ -342,7 +343,7 @@ impl LendingOffer {
         lender_nft_utxo: UTXO,
         pending_offer_input_index: u32,
     ) {
-        let lender_nft_script_auth = ScriptAuth::from_simplex_program(self);
+        let lender_nft_script_auth = ScriptAuth::from_program(self);
         let lender_nft_witness_params = ScriptAuthWitnessParams::new(pending_offer_input_index);
 
         lender_nft_script_auth.attach_unlocking(ft, lender_nft_utxo, lender_nft_witness_params);
@@ -495,7 +496,7 @@ impl LendingOffer {
     }
 }
 
-impl SimplexProgram for LendingOffer {
+impl SimplicityProgram for LendingOffer {
     fn get_program_source_code() -> &'static str {
         LendingProgram::SOURCE
     }
@@ -504,7 +505,7 @@ impl SimplexProgram for LendingOffer {
         self.program.as_ref()
     }
 
-    fn get_network(&self) -> &SimplicityNetwork {
+    fn get_network(&self) -> &Network {
         &self.parameters.network
     }
 }

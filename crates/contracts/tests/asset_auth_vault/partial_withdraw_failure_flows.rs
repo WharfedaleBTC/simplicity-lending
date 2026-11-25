@@ -1,11 +1,11 @@
 use lending_contracts::programs::asset_auth_vault::{
     ActiveAssetAuthVault, ActiveAssetAuthVaultParameters, FinalizedAssetAuthVaultParameters,
 };
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::signer::Signer;
-use simplex::simplicityhl::elements::Script;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Script;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::{
     final_supply, fund_keeper, issue_auth_assets, prepare_vault_asset, setup_asset_auth_vault,
@@ -13,7 +13,7 @@ use super::setup::{
 };
 
 fn default_vault_withdrawing_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     keeper: &Signer,
     vault_asset_amounts: Vec<u64>,
     keeper_auth_asset_amount: u64,
@@ -45,10 +45,9 @@ fn default_vault_withdrawing_setup(
     Ok((asset_auth_vault, active_vault_parameters))
 }
 
-#[simplex::test]
-fn partial_withdraw_fails_when_vault_already_finalized(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_withdraw_fails_when_vault_already_finalized() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -70,7 +69,7 @@ fn partial_withdraw_fails_when_vault_already_finalized(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -102,10 +101,9 @@ fn partial_withdraw_fails_when_vault_already_finalized(
     Ok(())
 }
 
-#[simplex::test]
-fn partial_withdraw_fails_when_auth_utxo_is_invalid(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_withdraw_fails_when_auth_utxo_is_invalid() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -127,7 +125,7 @@ fn partial_withdraw_fails_when_auth_utxo_is_invalid(
 
         ft.add_input(
             PartialInput::new(keeper_auth_utxo.clone()),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         ft.add_output(PartialOutput::new(
             keeper.get_address().script_pubkey(),
@@ -160,10 +158,9 @@ fn partial_withdraw_fails_when_auth_utxo_is_invalid(
     Ok(())
 }
 
-#[simplex::test]
-fn partial_withdraw_fails_when_auth_utxo_has_less_than_minimum_amount(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_withdraw_fails_when_auth_utxo_has_less_than_minimum_amount() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -188,7 +185,7 @@ fn partial_withdraw_fails_when_auth_utxo_has_less_than_minimum_amount(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -225,10 +222,9 @@ fn partial_withdraw_fails_when_auth_utxo_has_less_than_minimum_amount(
     Ok(())
 }
 
-#[simplex::test]
-fn partial_withdraw_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_withdraw_fails_when_auth_utxo_burned_but_burn_flag_was_not_set() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -247,7 +243,7 @@ fn partial_withdraw_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         Script::new_op_return(b"burn"),

@@ -1,4 +1,4 @@
-import type { Script } from 'lwk_wasm'
+import type { Script } from '@/wharfedale/types'
 
 const OP_RETURN = 0x6a
 const OP_PUSHDATA1 = 0x4c

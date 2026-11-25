@@ -1,19 +1,19 @@
-use simplex::signer::Signer;
-use simplex::simplicityhl::elements::{AssetId, OutPoint, Txid};
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{
+use lending_sdk::elements::{AssetId, OutPoint, Txid};
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{
     FinalTransaction, PartialInput, PartialOutput, RequiredSignature, UTXO,
 };
 
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
 use lending_contracts::programs::lending::{LendingOffer, LendingOfferParameters, OfferParameters};
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::utils::get_random_seed;
 
 use super::common::issuance::issue_asset;
 
 pub(super) fn setup_issuance_factory(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
 ) -> anyhow::Result<IssuanceFactory> {
     let signer = context.get_default_signer();
 
@@ -35,7 +35,7 @@ pub(super) fn setup_issuance_factory(
     let issuance_details = ft.add_issuance_input(
         PartialInput::new(signer_policy_utxo),
         IssuanceInput::new_issuance(issuance_factory_asset_amount, 0, issuance_factory_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -52,7 +52,7 @@ pub(super) fn setup_issuance_factory(
 }
 
 pub(super) fn fund_lender(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     lender: &Signer,
     principal_asset_id: AssetId,
     principal_to_send: u64,
@@ -69,12 +69,9 @@ pub(super) fn fund_lender(
 
     ft.add_input(
         PartialInput::new(principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
-    ft.add_input(
-        PartialInput::new(policy_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(policy_utxo), RequiredSignature::KeyPath);
 
     ft.add_output(PartialOutput::new(
         lender.get_address().script_pubkey(),
@@ -111,10 +108,7 @@ pub(super) fn make_confidential(signer: &Signer, asset_utxo: UTXO) -> anyhow::Re
         )
         .with_blinding_key(signer.get_blinding_public_key()),
     );
-    ft.add_input(
-        PartialInput::new(asset_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(asset_utxo), RequiredSignature::KeyPath);
 
     signer.broadcast(&ft)?.wait()?;
 
@@ -122,7 +116,7 @@ pub(super) fn make_confidential(signer: &Signer, asset_utxo: UTXO) -> anyhow::Re
 }
 
 pub(super) fn setup_pending_offer(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     offer_parameters: OfferParameters,
     factory: IssuanceFactory,
     total_principal_amount: u64,
@@ -157,7 +151,7 @@ pub(super) fn setup_pending_offer(
 
     ft.add_input(
         PartialInput::new(factory_auth_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         signer.get_address().script_pubkey(),
@@ -173,7 +167,7 @@ pub(super) fn setup_pending_offer(
     let lender_nft_issuance_details = ft.add_issuance_input(
         PartialInput::new(collateral_utxo),
         IssuanceInput::new_issuance(1, 0, nfts_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let lending_offer_parameters = LendingOfferParameters {
@@ -206,7 +200,7 @@ pub(super) fn setup_pending_offer(
 }
 
 pub(super) fn accept_pending_offer(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     pending_offer: &mut LendingOffer,
     pending_offer_creation_txid: Txid,
     lender: &Signer,
@@ -234,7 +228,7 @@ pub(super) fn accept_pending_offer(
 
     ft.add_input(
         PartialInput::new(lender_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -259,7 +253,7 @@ pub(super) fn accept_pending_offer(
 }
 
 pub(super) fn partial_repay_offer(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     active_offer: &mut LendingOffer,
     borrower: &Signer,
     amount_to_repay: u64,
@@ -292,7 +286,7 @@ pub(super) fn partial_repay_offer(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         borrower.get_address().script_pubkey(),
@@ -310,7 +304,7 @@ pub(super) fn partial_repay_offer(
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(
@@ -336,7 +330,7 @@ pub(super) fn partial_repay_offer(
 }
 
 pub(super) fn get_pending_offer_utxos(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     pending_offer: &LendingOffer,
     pending_offer_creation_txid: Txid,
 ) -> anyhow::Result<(UTXO, UTXO)> {
@@ -357,7 +351,7 @@ pub(super) fn get_pending_offer_utxos(
 }
 
 pub(super) fn get_active_offer_utxos(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     active_offer: &LendingOffer,
     active_offer_creation_txid: Txid,
 ) -> anyhow::Result<(UTXO, UTXO)> {
@@ -378,7 +372,7 @@ pub(super) fn get_active_offer_utxos(
 }
 
 pub(super) fn get_lender_vault_utxo(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     offer: &LendingOffer,
 ) -> anyhow::Result<UTXO> {
     let provider = context.get_default_provider();
@@ -404,7 +398,7 @@ pub(super) fn get_lender_vault_utxo(
 }
 
 pub(super) fn get_protocol_fee_vault_utxo(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     offer: &LendingOffer,
 ) -> anyhow::Result<UTXO> {
     let provider = context.get_default_provider();
@@ -436,7 +430,7 @@ pub(super) fn get_protocol_fee_vault_utxo(
 }
 
 pub(super) fn get_active_offer_vaults_utxos(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     offer_parameters: LendingOfferParameters,
 ) -> anyhow::Result<(Option<UTXO>, Option<UTXO>)> {
     let provider = context.get_default_provider();

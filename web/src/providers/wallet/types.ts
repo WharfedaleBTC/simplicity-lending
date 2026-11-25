@@ -1,69 +1,37 @@
-import type { Address, EsploraClient, Pset, Transaction, Wollet, WolletDescriptor } from 'lwk_wasm'
-
-import type { WalletConnector } from '@/lib/wallet-core/connector/types'
-import type { WalletCache } from '@/lib/wallet-core/store/walletCache'
-import type { ConnectionStatus, WalletCoin, WalletType } from '@/lib/wallet-core/types'
-
-export interface ConnectOptions {
-  seedMnemonic?: string
-  /** Connect via the experimental SideSwap wallet connect flow instead of Jade/seed. */
-  sideswap?: boolean
-  /** Connect the Humid browser extension (signPset flow, not the tx manifest). */
-  humid?: boolean
-  /** Only reattach to a still-live SideSwap session; never start a fresh login request. */
-  resumeOnly?: boolean
-}
+import type { ConnectionStatus, WalletCoin } from '@/lib/wallet-core/types'
+import type { TxSpec } from '@/wharfedale/tx'
+import type { Address, Transaction } from '@/wharfedale/types'
+import type { CompletedTransaction } from '@/wharfedale/wallet'
 
 export type CachePolicy = 'preserve' | 'clear'
 
 export interface WalletContextValue extends WalletState {
   isReady: boolean
-  connect(variant: WalletType, options?: ConnectOptions): Promise<void>
-  /** Cancels an in-flight SideSwap login/sign request and resets the connection. */
+  /** Connects the recovery-phrase wallet (the phrase stays in this tab's session storage). */
+  connect(mnemonic: string): Promise<void>
+  /** Kept for the UI's cancel buttons; a recovery-phrase wallet has no pending requests. */
   cancelPendingRequest(): Promise<void>
   disconnect(options?: { cachePolicy?: CachePolicy }): Promise<void>
   syncWallet(): Promise<void>
-  /** Applies a just-broadcast tx to local wallet state instantly, without a network scan. */
+  /** Re-reads coins soon after a broadcast (the node indexes it within a block). */
   applyBroadcastTransaction(tx: Transaction): void
-  signPset(pset: Pset): Promise<Pset>
+  /** Funds (wallet fee-asset coins, change, fee), blinds, signs and satisfies `spec`. */
+  completeTransaction(spec: TxSpec, feeRateSatPerKvb: number): Promise<CompletedTransaction>
   getBlindedWalletUtxos(): Promise<WalletCoin[]>
-  getWollet(): Promise<Wollet>
   getReceiveAddress(): Promise<string | null>
   getChangeAddress(): Promise<Address>
   verifyReceiveAddress(): Promise<string>
 }
 
-export interface WalletSession {
-  connector: WalletConnector
-  descriptor: WolletDescriptor
-  wollet: Wollet
-  esploraClient: EsploraClient
-  cache: WalletCache
-}
-
 export interface SavedSession {
-  connectorId: string | null
-  walletType: WalletType
-  descriptorStr: string
-  /** Set only for seed-signer sessions — needed to silently reconnect the software signer on reload. */
-  seedMnemonic?: string
-  sideswap?: boolean
-  humid?: boolean
+  mnemonic: string
 }
 
-export type WalletSignerType = 'jade' | 'seed' | 'sideswap' | 'humid'
-
-// appLink is null for sign requests — the deep-link format for those isn't confirmed yet.
-export interface PendingWalletRequest {
-  kind: 'login' | 'sign'
-  requestId: string
-  appLink: string | null
-}
+export type WalletSignerType = 'seed'
 
 export interface WalletState {
   connectionStatus: ConnectionStatus
   connectorId: string | null
-  walletType: WalletType | null
   signerType: WalletSignerType | null
   balances: Record<string, string>
   confirmedBalances: Record<string, string>
@@ -73,8 +41,6 @@ export interface WalletState {
   scriptPubkey: string | null
   syncing: boolean
   reconnecting: boolean
-  usbDeviceDetected: boolean
-  pendingRequest: PendingWalletRequest | null
   /** Last error message. Persists even after isError is cleared. */
   error: string | null
   /** Whether the error should be shown to the user. Cleared on reconnect or new connect attempt. */
@@ -84,7 +50,6 @@ export interface WalletState {
 export const INITIAL_WALLET_STATE: WalletState = {
   connectionStatus: 'disconnected',
   connectorId: null,
-  walletType: null,
   signerType: null,
   balances: {},
   confirmedBalances: {},
@@ -93,8 +58,6 @@ export const INITIAL_WALLET_STATE: WalletState = {
   scriptPubkey: null,
   syncing: false,
   reconnecting: false,
-  usbDeviceDetected: false,
-  pendingRequest: null,
   error: null,
   isError: false,
 }

@@ -472,7 +472,8 @@ fn liquidate_offer(current_debt: u64) {
     let current_script_hash: u256 = get_script_hash_for_storage(true, current_debt);
     ensure_input_script_hash(lending_input_index, current_script_hash);
 
-    jet::check_lock_height(param::LOAN_EXPIRATION_TIME);
+    // Wharfedale: a unix time, enforced against the block's own timestamp.
+    jet::check_lock_time(param::LOAN_EXPIRATION_TIME);
 
     let _: u64 = validate_collateral_input(lending_input_index, current_debt);
 

@@ -1,7 +1,7 @@
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
-use lending_contracts::programs::program::{MetadataProgram, SimplexProgram};
+use lending_contracts::programs::program::{MetadataProgram, SimplicityProgram};
 use lending_contracts::utils::op_return_payload as script_op_return_payload;
-use simplex::simplicityhl::elements::{Transaction, Txid};
+use lending_sdk::elements::{Transaction, Txid};
 
 use super::setup::setup_issuance_factory;
 
@@ -12,7 +12,7 @@ fn op_return_payload(tx: &Transaction) -> Vec<u8> {
 }
 
 fn setup_default_issuance_factory(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
 ) -> anyhow::Result<(Txid, IssuanceFactory, IssuanceFactoryParameters)> {
     let provider = context.get_default_provider();
     let issuing_utxos_count = 3;
@@ -30,10 +30,9 @@ fn setup_default_issuance_factory(
     ))
 }
 
-#[simplex::test]
-fn creates_issuance_factory_with_creation_metadata(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn creates_issuance_factory_with_creation_metadata() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let (issuance_factory_creation_txid, _, issuance_factory_parameters) =
         setup_default_issuance_factory(&context)?;
@@ -58,8 +57,9 @@ fn creates_issuance_factory_with_creation_metadata(
     Ok(())
 }
 
-#[simplex::test]
-fn decodes_issuance_factory_creation_metadata(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn decodes_issuance_factory_creation_metadata() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let (issuance_factory_creation_txid, _, issuance_factory_parameters) =
         setup_default_issuance_factory(&context)?;

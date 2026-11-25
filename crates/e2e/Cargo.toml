@@ -1,0 +1,22 @@
+[package]
+name = "lending-e2e"
+version = "0.1.0"
+edition = "2024"
+description = "End-to-end loan lifecycle against a running Wharfedale network and lending indexer (make e2e)"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+anyhow = "1"
+hex = { workspace = true }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+lending-contracts = { path = "../contracts" }
+lending-indexer = { path = "../indexer", default-features = false }
+lending-sdk = { path = "../sdk" }
+lending-session = { path = "../session" }

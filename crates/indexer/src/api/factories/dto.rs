@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use simplex::simplicityhl::elements::hex::ToHex;
+use lending_sdk::hex::ToHex;
 
 use crate::api::utils::format_hex;
 use crate::models::FactoryStatus;

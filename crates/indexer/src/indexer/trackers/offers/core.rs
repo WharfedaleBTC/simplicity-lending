@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use simplex::simplicityhl::elements::{OutPoint, Transaction, Txid, hashes::Hash};
+use lending_sdk::elements::{OutPoint, Transaction, Txid};
 
 use crate::{
     db::DbTx,

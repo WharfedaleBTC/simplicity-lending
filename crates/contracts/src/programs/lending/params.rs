@@ -1,4 +1,4 @@
-use simplex::{provider::SimplicityNetwork, simplicityhl::elements::AssetId};
+use lending_sdk::{Network, elements::AssetId};
 
 use crate::{
     artifacts::lending::derived_lending::LendingArguments,
@@ -8,7 +8,7 @@ use crate::{
             ActiveAssetAuthVault, FinalizedAssetAuthVault, FinalizedAssetAuthVaultParameters,
         },
         lending::OfferParameters,
-        program::SimplexProgram,
+        program::SimplicityProgram,
     },
 };
 
@@ -20,7 +20,7 @@ pub struct LendingOfferParameters {
     pub lender_nft_asset_id: AssetId,
     pub protocol_fee_keeper_asset_id: AssetId,
     pub offer_parameters: OfferParameters,
-    pub network: SimplicityNetwork,
+    pub network: Network,
 }
 
 impl LendingOfferParameters {
@@ -53,10 +53,10 @@ impl LendingOfferParameters {
 
     pub fn build_arguments(&self) -> LendingArguments {
         LendingArguments {
-            collateral_asset_id: self.collateral_asset_id.into_inner().0,
-            principal_asset_id: self.principal_asset_id.into_inner().0,
-            borrower_nft_asset_id: self.borrower_nft_asset_id.into_inner().0,
-            lender_nft_asset_id: self.lender_nft_asset_id.into_inner().0,
+            collateral_asset_id: self.collateral_asset_id.to_byte_array(),
+            principal_asset_id: self.principal_asset_id.to_byte_array(),
+            borrower_nft_asset_id: self.borrower_nft_asset_id.to_byte_array(),
+            lender_nft_asset_id: self.lender_nft_asset_id.to_byte_array(),
             collateral_amount: self.offer_parameters.collateral_amount,
             principal_amount: self.offer_parameters.principal_amount,
             principal_interest_rate: self.offer_parameters.principal_interest_rate as u64,

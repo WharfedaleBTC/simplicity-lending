@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 use lending_contracts::programs::lending::LendingOfferParameters;
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::programs::script_auth::ScriptAuth;
 use lending_indexer::indexer::{
     insert_offer, insert_offer_utxo, insert_participant_utxo, spend_offer_utxo,
@@ -11,9 +11,9 @@ use lending_indexer::indexer::{
 use lending_indexer::models::{
     OfferModel, OfferParticipantModel, OfferStatus, OfferUtxoModel, ParticipantType, UtxoType,
 };
+use lending_sdk::elements::{AssetId, OutPoint, Txid};
+use lending_sdk::hex::FromSlice;
 use lending_session::{AcceptOfferTx, CreateOfferParams, OfferParameters, Session};
-use simplex::simplicityhl::elements::hashes::Hash;
-use simplex::simplicityhl::elements::{AssetId, OutPoint, Txid};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -34,7 +34,8 @@ pub fn offer_params(
     principal_asset_id: AssetId,
     loan_expiration_offset: u32,
 ) -> anyhow::Result<CreateOfferParams> {
-    let current_height = session.signer().get_provider().fetch_tip_height()?;
+    // Loans end at a unix time.
+    let current_time = u32::try_from(session.signer().get_provider().fetch_tip_timestamp()?)?;
 
     Ok(CreateOfferParams {
         principal_asset_id,
@@ -43,7 +44,7 @@ pub fn offer_params(
         offer_parameters: OfferParameters {
             collateral_amount: 3_000,
             principal_amount: TEST_PRINCIPAL_AMOUNT,
-            loan_expiration_time: current_height + loan_expiration_offset,
+            loan_expiration_time: current_time + loan_expiration_offset,
             principal_interest_rate: 1_000,
         },
     })
@@ -94,8 +95,7 @@ pub async fn create_and_broadcast_offer(
     let create = session.create_offer(params).await?;
     let parameters = *create.pending_offer.get_parameters();
     let pending_offer_script = create.pending_offer.get_script_pubkey();
-    let lender_nft_script =
-        ScriptAuth::from_simplex_program(&create.pending_offer).get_script_pubkey();
+    let lender_nft_script = ScriptAuth::from_program(&create.pending_offer).get_script_pubkey();
     let borrower_script_pubkey = session.signer().get_address().script_pubkey();
 
     let receipt = session.signer().broadcast(&create.transaction)?;

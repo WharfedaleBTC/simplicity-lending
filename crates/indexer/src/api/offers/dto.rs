@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use simplex::simplicityhl::elements::hex::ToHex;
+use lending_sdk::hex::ToHex;
 
 use crate::api::dto::AssetAmount;
 use crate::api::utils::{format_hex, format_offer_id, format_satoshis};
@@ -71,7 +71,7 @@ pub struct OfferListItemShort {
     /// Interest rate in basis points.
     #[schema(example = 120)]
     pub interest_rate: u32,
-    pub loan_expiration_height: u32,
+    pub loan_expiration_time: u32,
     /// Block height of the latest offer status update.
     pub updated_at_height: u64,
     pub created_at_height: u64,
@@ -108,7 +108,7 @@ impl From<OfferModelShort> for OfferListItemShort {
             collateral_amount: format_satoshis(value.collateral_amount),
             principal_amount: format_satoshis(value.principal_amount),
             interest_rate: value.interest_rate as u32,
-            loan_expiration_height: value.loan_expiration_time as u32,
+            loan_expiration_time: value.loan_expiration_time as u32,
             updated_at_height: value.updated_at_height as u64,
             created_at_height: value.created_at_height as u64,
             created_at_txid: format_hex(value.created_at_txid),
@@ -140,7 +140,7 @@ impl From<OfferModel> for OfferListItemFull {
                 collateral_amount: format_satoshis(value.collateral_amount),
                 principal_amount: format_satoshis(value.principal_amount),
                 interest_rate: value.interest_rate as u32,
-                loan_expiration_height: value.loan_expiration_time as u32,
+                loan_expiration_time: value.loan_expiration_time as u32,
                 updated_at_height: value.updated_at_height as u64,
                 created_at_height: value.created_at_height as u64,
                 created_at_txid: format_hex(value.created_at_txid),
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(dto.collateral_amount, "1000");
         assert_eq!(dto.principal_amount, "500");
         assert_eq!(dto.interest_rate, 250);
-        assert_eq!(dto.loan_expiration_height, 123);
+        assert_eq!(dto.loan_expiration_time, 123);
         assert_eq!(dto.created_at_height, 456);
         assert_eq!(dto.created_at_txid, "ccbbaa");
         assert!(dto.participants.is_empty());

@@ -1,4 +1,4 @@
-use simplex::simplicityhl::elements::{Transaction, TxOut};
+use lending_sdk::elements::{Transaction, TxOut};
 
 use crate::models::FactoryIdentity;
 
@@ -91,7 +91,7 @@ fn is_asset_utxo(identity: &FactoryIdentity, output: &TxOut) -> bool {
         return false;
     };
 
-    asset_id.into_inner().0.as_slice() == identity.factory_asset_id.as_slice()
+    asset_id.to_byte_array().as_slice() == identity.factory_asset_id.as_slice()
         && amount == 1
         && !output.script_pubkey.is_op_return()
 }

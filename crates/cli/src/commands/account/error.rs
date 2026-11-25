@@ -1,11 +1,4 @@
-use simplex::{
-    provider::ProviderError,
-    signer::SignerError,
-    simplicityhl::{
-        elements::OutPoint,
-        simplicity::{bitcoin::key::ParsePublicKeyError, hex::HexToArrayError},
-    },
-};
+use lending_sdk::{elements::OutPoint, provider::ProviderError, signer::SignerError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AccountCommandError {
@@ -47,18 +40,15 @@ pub enum AccountCommandError {
         total_amount_to_split: u64,
     },
 
-    #[error("Simplex Signer error: {0}")]
+    #[error("Signer error: {0}")]
     Signer(#[from] SignerError),
 
-    #[error("Simplex Provider error: {0}")]
+    #[error("Provider error: {0}")]
     Provider(#[from] ProviderError),
 
-    #[error("Hex to array error: {0}")]
-    HexToArray(#[from] HexToArrayError),
+    #[error("Invalid asset id: {0}")]
+    InvalidAssetId(String),
 
-    #[error("Invalid recipient blinding public key `{key}`: {source}")]
-    InvalidRecipientBlindingPublicKey {
-        key: String,
-        source: ParsePublicKeyError,
-    },
+    #[error("Invalid recipient blinding public key `{key}`: {reason}")]
+    InvalidRecipientBlindingPublicKey { key: String, reason: String },
 }

@@ -1,6 +1,7 @@
 import { buttonVariants } from '@heroui/react'
+import { Link } from 'react-router-dom'
 
-import { ExternalLink } from '@/constants/links'
+import { RoutePath } from '@/constants/routes'
 
 import { LandingContainer } from './LandingContainer'
 import { Reveal } from './Reveal'
@@ -12,19 +13,14 @@ export function GetStarted() {
         <Reveal className='text-foreground flex flex-col gap-4'>
           <p className='text-[36px] leading-10 font-semibold'>Get Started</p>
           <p className='text-sm'>
-            Simplicity Lending isn&apos;t live on mainnet yet. Leave your email and we&apos;ll let
-            you know the moment it launches.
+            Simplicity Lending runs on Wharfedale. Connect a recovery-phrase wallet, get WBTC from
+            the faucet, and borrow or supply in minutes.
           </p>
         </Reveal>
         <Reveal delay={0.15}>
-          <a
-            className={buttonVariants({ variant: 'primary' })}
-            href={ExternalLink.NotifyForm}
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            Be the first to know
-          </a>
+          <Link className={buttonVariants({ variant: 'primary' })} to={RoutePath.Dashboard}>
+            Open the app
+          </Link>
         </Reveal>
       </LandingContainer>
     </section>

@@ -1,10 +1,8 @@
 import type { ComponentType, SVGProps } from 'react'
+import { z as zod } from 'zod'
 
-import LbtcIcon from '@/components/icons/LbtcIcon'
 import TestAssetIcon from '@/components/icons/TestAssetIcon'
-import TestnetLbtcIcon from '@/components/icons/TestnetLbtcIcon'
-import UsdtIcon from '@/components/icons/UsdtIcon'
-import { env, type NetworkName } from '@/constants/env'
+import WbtcIcon from '@/components/icons/WbtcIcon'
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>
 
@@ -16,82 +14,71 @@ export interface ConfigAsset {
 }
 
 export interface NetworkConfig {
+  /** The chain's fee asset (WBTC): collateral, fees and change. */
   collateralAsset: ConfigAsset
   principalAsset: ConfigAsset
+  /** The asset whose holder collects protocol fees (as the indexer's protocol_fee_keeper_asset_id). */
   protocolFeeAsset: ConfigAsset
-  /** Display unit for the policy asset's base unit (sats). */
+  /** Display unit for the fee asset's base unit. */
   policyAssetSatsUnit: string
+  /** Block explorer for transaction links (the Wharfedale web app), without a trailing slash. */
+  explorerUrl: string
+  /** USD price per asset id from the config; WBTC's is the fallback for the live BTC/USD price. */
+  pricesUsd: Record<string, number>
+  /** The Wharfedale web app's faucet, if the chain has one. */
+  faucetUrl: string
 }
 
-// Which asset plays the collateral vs principal role, per network. Covenants
-// themselves are asset-agnostic — this is the single place that pins them.
-const NETWORK_CONFIG_BY_NETWORK: Record<NetworkName, NetworkConfig> = {
-  liquid: {
-    collateralAsset: {
-      id: '6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d',
-      decimals: 8,
-      symbol: 'LBTC',
-      icon: LbtcIcon,
-    },
-    // USDT on liquid mainnet has 8 decimals.
-    principalAsset: {
-      id: 'ce091c998b83c78bb71a632313ba3760f1763d9cfcffae02258ffa9865a37bd2',
-      decimals: 8,
-      symbol: 'USDT',
-      icon: UsdtIcon,
-    },
-    protocolFeeAsset: {
-      id: 'ce091c998b83c78bb71a632313ba3760f1763d9cfcffae02258ffa9865a37bd2',
-      decimals: 8,
-      symbol: 'USDT',
-      icon: UsdtIcon,
-    },
-    policyAssetSatsUnit: 'Lsats',
-  },
-  liquidtestnet: {
-    collateralAsset: {
-      id: '144c654344aa716d6f3abcc1ca90e5641e4e2a7f633bc09fe3baf64585819a49',
-      decimals: 8,
-      symbol: 'tL-BTC',
-      icon: TestnetLbtcIcon,
-    },
-    // liquidtestnet.com's "Testnet Asset" (ticker TEST) stands in for USDT as the principal.
-    // Labeled and iconed as its own asset so it isn't mistaken for real USDT.
-    principalAsset: {
-      id: '38fca2d939696061a8f76d4e6b5eecd54e3b4221c846f24a6b279e79952850a5',
-      decimals: 3,
-      symbol: 'TEST',
-      icon: TestAssetIcon,
-    },
-    protocolFeeAsset: {
-      id: '38fca2d939696061a8f76d4e6b5eecd54e3b4221c846f24a6b279e79952850a5',
-      decimals: 3,
-      symbol: 'TEST',
-      icon: TestAssetIcon,
-    },
-    policyAssetSatsUnit: 'tLsats',
-  },
-  regtest: {
-    collateralAsset: {
-      id: '5ac9f65c0efcc4775e0baec4ec03abdde22473cd3cf33c0419ca290e0751b225',
-      decimals: 8,
-      symbol: 'LBTC',
-      icon: LbtcIcon,
-    },
-    principalAsset: {
-      id: '25b17682b0e4f7b0711de7e8ee2e33cd01d65680eed82cce1af84cfbdde30064',
-      decimals: 2,
-      symbol: 'USDT',
-      icon: UsdtIcon,
-    },
-    protocolFeeAsset: {
-      id: '25b17682b0e4f7b0711de7e8ee2e33cd01d65680eed82cce1af84cfbdde30064',
-      decimals: 2,
-      symbol: 'USDT',
-      icon: UsdtIcon,
-    },
-    policyAssetSatsUnit: 'Lsats',
-  },
+const assetSchema = zod.object({
+  id: zod.string().regex(/^[0-9a-f]{64}$/),
+  symbol: zod.string().min(1),
+  decimals: zod.number().int().min(0).max(8),
+})
+
+/**
+ * /config.json, rendered per deployment (docker/web-entrypoint.sh) or kept in web/public for
+ * `pnpm dev`. Covenants are asset-agnostic; this is the one place that pins the assets.
+ */
+export const runtimeConfigSchema = zod.object({
+  collateralAsset: assetSchema,
+  principalAsset: assetSchema,
+  protocolFeeAsset: assetSchema,
+  explorerUrl: zod.string().default(''),
+  /** USD price per asset symbol: `{"WBTC": 100000, "USDT": 1}`. WBTC's is used only when the
+   *  live BTC/USD price can't be fetched (api/prices/methods.ts). */
+  pricesUsd: zod.record(zod.string(), zod.number()).default({}),
+  faucetUrl: zod.string().default(''),
+})
+
+export type RuntimeConfig = zod.infer<typeof runtimeConfigSchema>
+
+const placeholder = (symbol: string): ConfigAsset => ({
+  id: '0'.repeat(64),
+  decimals: 8,
+  symbol,
+  icon: TestAssetIcon,
+})
+
+// Filled from /config.json before the app renders (providers/chain/ChainProvider.tsx).
+export const NETWORK_CONFIG: NetworkConfig = {
+  collateralAsset: placeholder('WBTC'),
+  principalAsset: placeholder('USD'),
+  protocolFeeAsset: placeholder('USD'),
+  policyAssetSatsUnit: 'sats',
+  explorerUrl: '',
+  pricesUsd: {},
+  faucetUrl: '',
 }
 
-export const NETWORK_CONFIG = NETWORK_CONFIG_BY_NETWORK[env.VITE_NETWORK]
+export function applyRuntimeConfig(config: RuntimeConfig): void {
+  NETWORK_CONFIG.collateralAsset = { ...config.collateralAsset, icon: WbtcIcon }
+  NETWORK_CONFIG.principalAsset = { ...config.principalAsset, icon: TestAssetIcon }
+  NETWORK_CONFIG.protocolFeeAsset = { ...config.protocolFeeAsset, icon: TestAssetIcon }
+  NETWORK_CONFIG.explorerUrl = config.explorerUrl.replace(/\/$/, '')
+  NETWORK_CONFIG.faucetUrl = config.faucetUrl
+  NETWORK_CONFIG.pricesUsd = Object.fromEntries(
+    [config.collateralAsset, config.principalAsset, config.protocolFeeAsset].flatMap(asset =>
+      asset.symbol in config.pricesUsd ? [[asset.id, config.pricesUsd[asset.symbol]]] : [],
+    ),
+  )
+}

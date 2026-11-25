@@ -3,7 +3,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use simplex::simplicityhl::elements::{Txid, hashes::Hash};
+use lending_sdk::elements::Txid;
 
 use lending_contracts::programs::lending::LendingOfferParameters;
 
@@ -102,18 +102,22 @@ impl OfferModel {
         Self {
             id: 0,
             issuance_factory_id: factory_id,
-            collateral_asset_id: offer_parameters.collateral_asset_id.into_inner().0.to_vec(),
-            principal_asset_id: offer_parameters.principal_asset_id.into_inner().0.to_vec(),
+            collateral_asset_id: offer_parameters
+                .collateral_asset_id
+                .to_byte_array()
+                .to_vec(),
+            principal_asset_id: offer_parameters.principal_asset_id.to_byte_array().to_vec(),
             borrower_nft_asset_id: offer_parameters
                 .borrower_nft_asset_id
-                .into_inner()
-                .0
+                .to_byte_array()
                 .to_vec(),
-            lender_nft_asset_id: offer_parameters.lender_nft_asset_id.into_inner().0.to_vec(),
+            lender_nft_asset_id: offer_parameters
+                .lender_nft_asset_id
+                .to_byte_array()
+                .to_vec(),
             protocol_fee_keeper_asset_id: offer_parameters
                 .protocol_fee_keeper_asset_id
-                .into_inner()
-                .0
+                .to_byte_array()
                 .to_vec(),
             collateral_amount: offer_parameters.offer_parameters.collateral_amount as i64,
             principal_amount: offer_parameters.offer_parameters.principal_amount as i64,
@@ -147,10 +151,8 @@ pub struct OfferModelShort {
 mod tests {
     use super::{OfferModel, OfferStatus};
     use lending_contracts::programs::lending::{LendingOfferParameters, OfferParameters};
-    use simplex::{
-        provider::SimplicityNetwork,
-        simplicityhl::elements::{AssetId, Txid, hashes::Hash},
-    };
+    use lending_sdk::elements::{AssetId, Txid};
+    use lending_sdk::hex::FromSlice;
     use uuid::Uuid;
 
     fn make_offer_params() -> LendingOfferParameters {
@@ -166,7 +168,7 @@ mod tests {
                 loan_expiration_time: 12_345,
                 principal_interest_rate: 250,
             },
-            network: SimplicityNetwork::LiquidTestnet,
+            network: lending_sdk::network::test_network(),
         }
     }
 
@@ -182,23 +184,23 @@ mod tests {
         assert_eq!(model.issuance_factory_id, factory_id);
         assert_eq!(
             model.collateral_asset_id,
-            params.collateral_asset_id.into_inner().0.to_vec()
+            params.collateral_asset_id.to_byte_array().to_vec()
         );
         assert_eq!(
             model.principal_asset_id,
-            params.principal_asset_id.into_inner().0.to_vec()
+            params.principal_asset_id.to_byte_array().to_vec()
         );
         assert_eq!(
             model.borrower_nft_asset_id,
-            params.borrower_nft_asset_id.into_inner().0.to_vec()
+            params.borrower_nft_asset_id.to_byte_array().to_vec()
         );
         assert_eq!(
             model.lender_nft_asset_id,
-            params.lender_nft_asset_id.into_inner().0.to_vec()
+            params.lender_nft_asset_id.to_byte_array().to_vec()
         );
         assert_eq!(
             model.protocol_fee_keeper_asset_id,
-            params.protocol_fee_keeper_asset_id.into_inner().0.to_vec()
+            params.protocol_fee_keeper_asset_id.to_byte_array().to_vec()
         );
         assert_eq!(model.collateral_amount, 1_000);
         assert_eq!(model.principal_amount, 500);

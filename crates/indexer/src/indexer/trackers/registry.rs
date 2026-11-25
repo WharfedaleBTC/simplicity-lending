@@ -1,8 +1,9 @@
 use sqlx::PgPool;
 
-use simplex::{
-    provider::SimplicityNetwork,
-    simplicityhl::elements::{AssetId, Transaction, hex::ToHex},
+use lending_sdk::{
+    Network,
+    elements::{AssetId, Transaction},
+    hex::ToHex,
 };
 
 use crate::{
@@ -26,7 +27,7 @@ impl TrackerRegistry {
     pub async fn load(
         db_pool: &PgPool,
         protocol_fee_keeper_asset_id: AssetId,
-        network: SimplicityNetwork,
+        network: Network,
         asset_registration: Option<AssetRegistration>,
     ) -> anyhow::Result<Self> {
         // TODO: move factory parameters to config

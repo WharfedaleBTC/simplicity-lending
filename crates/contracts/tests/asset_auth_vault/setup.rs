@@ -2,12 +2,12 @@ use lending_contracts::programs::asset_auth_vault::{
     ActiveAssetAuthVault, FinalizedAssetAuthVault, FinalizedAssetAuthVaultParameters,
 };
 
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::utils::get_random_seed;
-use simplex::signer::Signer;
-use simplex::simplicityhl::elements::AssetId;
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{
+use lending_sdk::elements::AssetId;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{
     FinalTransaction, PartialInput, PartialOutput, RequiredSignature, UTXO,
 };
 
@@ -15,7 +15,7 @@ use super::common::issuance::issue_asset;
 use super::common::wallet::{get_split_utxo_ft, split_first_signer_utxo};
 
 pub(super) fn issue_auth_assets(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     supplier_auth_asset_amount: u64,
     keeper_auth_asset_amount: u64,
 ) -> anyhow::Result<(AssetId, AssetId)> {
@@ -35,12 +35,12 @@ pub(super) fn issue_auth_assets(
     let supplier_auth_issuance_details = ft.add_issuance_input(
         PartialInput::new(first_utxo),
         IssuanceInput::new_issuance(supplier_auth_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     let keeper_auth_issuance_details = ft.add_issuance_input(
         PartialInput::new(second_utxo),
         IssuanceInput::new_issuance(keeper_auth_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -63,7 +63,7 @@ pub(super) fn issue_auth_assets(
 }
 
 pub(super) fn prepare_vault_asset(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     total_vault_asset_amount: u64,
     split_amounts: Vec<u64>,
 ) -> anyhow::Result<AssetId> {
@@ -86,7 +86,7 @@ pub(super) fn prepare_vault_asset(
 }
 
 pub(super) fn make_confidential(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     asset_utxo: UTXO,
 ) -> anyhow::Result<()> {
     let signer = context.get_default_signer();
@@ -101,10 +101,7 @@ pub(super) fn make_confidential(
         )
         .with_blinding_key(signer.get_blinding_public_key()),
     );
-    ft.add_input(
-        PartialInput::new(asset_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(asset_utxo), RequiredSignature::KeyPath);
 
     signer.broadcast(&ft)?.wait()?;
 
@@ -112,7 +109,7 @@ pub(super) fn make_confidential(
 }
 
 pub(super) fn setup_asset_auth_vault(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     vault_parameters: FinalizedAssetAuthVaultParameters,
 ) -> anyhow::Result<ActiveAssetAuthVault> {
     let provider = context.get_default_provider();
@@ -125,7 +122,7 @@ pub(super) fn setup_asset_auth_vault(
 
     ft.add_input(
         PartialInput::new(vault_asset_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let asset_auth_vault = ActiveAssetAuthVault::from_finalized_vault(vault_parameters);
@@ -143,7 +140,7 @@ pub(super) fn setup_asset_auth_vault(
 }
 
 pub(super) fn fund_keeper(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     keeper: &Signer,
     keeper_asset_id: AssetId,
 ) -> anyhow::Result<()> {
@@ -159,12 +156,9 @@ pub(super) fn fund_keeper(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
-    ft.add_input(
-        PartialInput::new(policy_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(policy_utxo), RequiredSignature::KeyPath);
 
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -183,7 +177,7 @@ pub(super) fn fund_keeper(
 }
 
 pub(super) fn final_supply(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     asset_auth_vault: &ActiveAssetAuthVault,
     amount_to_supply: u64,
 ) -> anyhow::Result<FinalizedAssetAuthVault> {
@@ -206,11 +200,11 @@ pub(super) fn final_supply(
 
     ft.add_input(
         PartialInput::new(supplier_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let finalized_vault = asset_auth_vault.attach_final_supplying(
@@ -241,7 +235,7 @@ pub(super) fn final_supply(
 }
 
 pub(super) fn supply(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     asset_auth_vault: &ActiveAssetAuthVault,
     amount_to_supply: u64,
 ) -> anyhow::Result<()> {
@@ -264,11 +258,11 @@ pub(super) fn supply(
 
     ft.add_input(
         PartialInput::new(supplier_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     asset_auth_vault.attach_supplying(&mut ft, asset_auth_vault_utxo, 0, 1, amount_to_supply);
@@ -293,8 +287,8 @@ pub(super) fn supply(
 }
 
 pub(super) fn check_vault_amount(
-    context: &simplex::TestContext,
-    vault: &impl SimplexProgram,
+    context: &lending_sdk::TestContext,
+    vault: &impl SimplicityProgram,
     expected_amount: u64,
 ) -> anyhow::Result<()> {
     let provider = context.get_default_provider();

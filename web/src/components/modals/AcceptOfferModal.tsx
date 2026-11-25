@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import { FALLBACK_FEE_RATE_SAT_PER_KVB, fetchFeeRateSatPerKvb } from '@/api/esplora/fee'
+import { useBlockTimestamps } from '@/api/esplora/hooks'
 import { esploraQueryKeys } from '@/api/esplora/queryKeys'
 import { fetchOffer } from '@/api/indexer/methods'
 import type { OfferShort } from '@/api/indexer/schemas'
@@ -13,18 +14,18 @@ import { NETWORK_CONFIG } from '@/constants/network-config'
 import { useAcceptOffer } from '@/hooks/useAcceptOffer'
 import { useFormatAmount } from '@/hooks/useFormatAmount'
 import { useStandardTransactionFlow } from '@/hooks/useStandardTransactionFlow'
+import { useChain } from '@/providers/chain/useChain'
+import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
+import { useWallet } from '@/providers/wallet/useWallet'
+import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
+import { SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/script-auth/program'
+import { calcInterest, computeApr, getOfferDurationSeconds } from '@/utils/offers'
 import {
   estimateFeeBudgetSats,
   selectAssetUtxos,
   selectFeeUtxos,
   utxoToOutpointString,
-} from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
-import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
-import { useWallet } from '@/providers/wallet/useWallet'
-import { LENDING_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/lending/program'
-import { SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/script-auth/program'
-import { calcInterest, computeApr } from '@/utils/offers'
+} from '@/wharfedale/utxo'
 
 const ACCEPT_WEIGHT_UNITS =
   LENDING_MAX_WEIGHT_TO_SATISFY.OfferAcceptance + SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY
@@ -44,11 +45,12 @@ export default function AcceptOfferModal({
 }: AcceptOfferModalProps) {
   const { principalAsset } = NETWORK_CONFIG
   const { syncWallet, getBlindedWalletUtxos, scriptPubkey, confirmedBalances } = useWallet()
-  const { lwkNetwork } = useLwk()
+  const { chainNetwork: lwkNetwork } = useChain()
   const { acceptOffer } = useAcceptOffer()
   const runStandardTransactionFlow = useStandardTransactionFlow()
   const { addPendingTx } = usePendingTransactions()
   const { formatCollateralDisplay, formatPrincipalAmount } = useFormatAmount()
+  const createdTimes = useBlockTimestamps([offer.created_at_height])
 
   const acceptBorrowOffer = () =>
     runStandardTransactionFlow(async () => {
@@ -124,10 +126,10 @@ export default function AcceptOfferModal({
       },
       {
         label: 'APR',
-        value: `${computeApr(offer.interest_rate, offer.loan_expiration_height - offer.created_at_height).toFixed(2)}%`,
+        value: `${computeApr(offer.interest_rate, getOfferDurationSeconds(offer, createdTimes[offer.created_at_height])).toFixed(2)}%`,
       },
     ],
-    [offer, formatCollateralDisplay, formatPrincipalAmount],
+    [offer, formatCollateralDisplay, formatPrincipalAmount, createdTimes],
   )
 
   return (

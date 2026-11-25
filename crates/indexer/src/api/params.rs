@@ -33,7 +33,7 @@ pub enum OfferSortBy {
     CollateralAmount,
     PrincipalAmount,
     InterestRate,
-    LoanExpirationHeight,
+    LoanExpirationTime,
 }
 
 impl OfferSortBy {
@@ -44,7 +44,7 @@ impl OfferSortBy {
             Self::CollateralAmount => "collateral_amount",
             Self::PrincipalAmount => "principal_amount",
             Self::InterestRate => "interest_rate",
-            Self::LoanExpirationHeight => "loan_expiration_time",
+            Self::LoanExpirationTime => "loan_expiration_time",
         }
     }
 }
@@ -200,12 +200,12 @@ mod tests {
     }
 
     #[test]
-    fn offer_list_query_parses_sort_by_loan_expiration_height() {
+    fn offer_list_query_parses_sort_by_loan_expiration_time() {
         let parsed: OfferListQuery =
-            serde_urlencoded::from_str("sort_by=loan_expiration_height").expect("parse sort_by");
+            serde_urlencoded::from_str("sort_by=loan_expiration_time").expect("parse sort_by");
         assert!(matches!(
             parsed.sort_by,
-            super::OfferSortBy::LoanExpirationHeight
+            super::OfferSortBy::LoanExpirationTime
         ));
     }
 

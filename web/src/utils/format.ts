@@ -1,6 +1,5 @@
 import { NETWORK_CONFIG } from '@/constants/network-config'
 
-const MINUTES_PER_BLOCK = 1 // Liquid ~1 min/block
 const MINUTES_PER_HOUR = 60
 const MINUTES_PER_DAY = 1440
 const GROUP_LOCALE = 'en-US'
@@ -27,10 +26,10 @@ export function formatFeeReserve(amountSats: bigint): string {
   return `${amountSats.toLocaleString(GROUP_LOCALE)} ${NETWORK_CONFIG.policyAssetSatsUnit}`
 }
 
-// blocks remaining → "Expired" / "~Xm" / "~Xh" / ">Xd".
-export function formatTermLeft(blocksLeft: number): string {
-  if (blocksLeft <= 0) return 'Expired'
-  const minutes = blocksLeft * MINUTES_PER_BLOCK
+// seconds remaining → "Expired" / "~Xm" / "~Xh" / ">Xd".
+export function formatTermLeft(secondsLeft: number): string {
+  if (secondsLeft <= 0) return 'Expired'
+  const minutes = Math.max(1, Math.round(secondsLeft / 60))
   if (minutes < MINUTES_PER_HOUR) return `~${minutes}m`
   if (minutes < MINUTES_PER_DAY) return `~${Math.round(minutes / MINUTES_PER_HOUR)}h`
   return `>${Math.floor(minutes / MINUTES_PER_DAY)}d`
@@ -40,12 +39,12 @@ export function truncateAddress(address: string): string {
   if (!address) return ''
   if (address.length <= 12) return address
 
-  // If it's a long Liquid Confidential address, use a balanced layout
+  // If it's a long confidential address, use a balanced layout
   if (address.length > 50) {
     return `${address.slice(0, 6)}...${address.slice(-6)}`
   }
 
-  // Fallback for standard Bitcoin or Unconfidential Liquid addresses
+  // Fallback for explicit addresses
   return `${address.slice(0, 8)}...${address.slice(-4)}`
 }
 

@@ -1,7 +1,5 @@
-import { type EsploraClient, type Transaction, TxOpt, type Wollet } from 'lwk_wasm'
-
 import type { WalletCoin } from '@/lib/wallet-core/types'
-import { isConfirmedWalletUtxo } from '@/lwk/utxo'
+import { isConfirmedWalletUtxo } from '@/wharfedale/utxo'
 
 export interface WalletBalances {
   total: Record<string, string>
@@ -32,65 +30,6 @@ function toWalletBalances(totals: Map<string, bigint>, coins: WalletCoin[]): Wal
   }
 
   return { total, confirmed, pending }
-}
-
-/**
- * Derives total/confirmed/pending balances from the wollet's current in-memory state.
- * No network calls — safe to call right after a local mutation like applyTransaction().
- */
-export function readWalletBalances(wollet: Wollet): WalletBalances {
-  const totals = new Map(wollet.balance().entries() as [string, bigint][])
-  return toWalletBalances(totals, wollet.utxos())
-}
-
-/**
- * Syncs wallet state via waterfalls fullScan and applies the update.
- * Returns the updated total and confirmed-only balance maps.
- */
-export async function syncBalances(
-  wollet: Wollet,
-  esploraClient: EsploraClient,
-): Promise<WalletBalances> {
-  const update = await esploraClient.fullScanToIndex(wollet, 0)
-  if (update) {
-    wollet.applyUpdate(update)
-  }
-  return readWalletBalances(wollet)
-}
-
-/**
- * Applies a just-broadcast transaction to the wallet's local state and returns the
- * updated balances immediately — no network round trip, so it can't race the indexer.
- * A later full scan (syncBalances) still reconciles confirmations over time.
- */
-export function applyBroadcastTransaction(wollet: Wollet, tx: Transaction): WalletBalances {
-  wollet.applyTransaction(tx)
-  return readWalletBalances(wollet)
-}
-
-/**
- * Re-applies still-untracked self-broadcast txs after a full scan, in case that scan
- * was a stale snapshot that undid their local effect. Returns txids the indexer now
- * genuinely confirms, so the caller can stop tracking them.
- */
-export function reconcilePendingBroadcasts(
-  wollet: Wollet,
-  pending: Map<string, Transaction>,
-): string[] {
-  const confirmedTxids: string[] = []
-  for (const [txid, tx] of pending) {
-    const height = wollet.txDetails(tx.txid(), TxOpt.default())?.height()
-    if (height !== undefined) {
-      confirmedTxids.push(txid)
-      continue
-    }
-    try {
-      wollet.applyTransaction(tx)
-    } catch (err) {
-      console.warn(err)
-    }
-  }
-  return confirmedTxids
 }
 
 export function readCoinBalances(coins: WalletCoin[]): WalletBalances {

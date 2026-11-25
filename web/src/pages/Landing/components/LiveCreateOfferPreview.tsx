@@ -2,8 +2,8 @@ import { buttonVariants } from '@heroui/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import LbtcIcon from '@/components/icons/LbtcIcon'
 import TriangleExclamationIcon from '@/components/icons/TriangleExclamationIcon'
+import LbtcIcon from '@/components/icons/WbtcIcon'
 import { UiFieldLabel } from '@/components/ui/UiFieldLabel'
 import { UiSelect } from '@/components/ui/UiSelect'
 import { UiTextField } from '@/components/ui/UiTextField'
@@ -12,7 +12,7 @@ import { RoutePath } from '@/constants/routes'
 import LoanMetricsSummary from '@/pages/Borrow/components/LoanMetricsSummary'
 
 const TICK_INTERVAL_MS = 3000
-const COLLATERAL_LBTC = 1
+const COLLATERAL_WBTC = 1
 const TERM_OPTIONS = [{ id: 1, textValue: '1 Month' }]
 
 function randomBetween(min: number, max: number) {
@@ -23,7 +23,7 @@ function generateTick() {
   const priceUsd = randomBetween(76000, 82000)
   const balance = 10 + randomBetween(-0.02, 0.02)
   const ltv = randomBetween(0.35, 0.5)
-  const loanAmount = Math.round((priceUsd * COLLATERAL_LBTC * ltv) / 100) * 100
+  const loanAmount = Math.round((priceUsd * COLLATERAL_WBTC * ltv) / 100) * 100
   const apr = randomBetween(7.5, 10.5)
   const fee = Math.round((loanAmount * (apr / 100)) / 12)
   const protocolFee = Math.round((fee * PROTOCOL_FEE_BPS) / 10000)
@@ -46,7 +46,7 @@ export function LiveCreateOfferPreview() {
         <div className='bg-surface-secondary flex flex-col gap-1 rounded-3xl p-4 sm:p-6'>
           <span className='text-foreground inline-flex items-center gap-1.5 text-sm font-medium'>
             <LbtcIcon className='size-4' />
-            LBTC
+            WBTC
           </span>
           <h3 className='text-muted text-h4'>Available Amount</h3>
           <span className='text-foreground text-xl font-semibold'>{tick.balance.toFixed(5)}</span>
@@ -61,16 +61,16 @@ export function LiveCreateOfferPreview() {
 
         <UiTextField
           label={
-            <UiFieldLabel required tooltip='The LBTC you lock to back the loan.'>
+            <UiFieldLabel required tooltip='The WBTC you lock to back the loan.'>
               Collateral to Lock
             </UiFieldLabel>
           }
-          value={String(COLLATERAL_LBTC)}
+          value={String(COLLATERAL_WBTC)}
           isReadOnly
-          endContent='LBTC'
+          endContent='WBTC'
           onMax={() => {}}
           isMaxDisabled
-          description={`Collateral Value = $${(tick.priceUsd * COLLATERAL_LBTC).toLocaleString('en-US', { maximumFractionDigits: 2 })} USD`}
+          description={`Collateral Value = $${(tick.priceUsd * COLLATERAL_WBTC).toLocaleString('en-US', { maximumFractionDigits: 2 })} USD`}
         />
 
         <UiTextField

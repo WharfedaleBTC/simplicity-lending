@@ -22,8 +22,8 @@ export type OfferAction =
   | 'liquidate'
   | 'none'
 
-function isOfferExpired(offer: OfferShort, currentBlockHeight: number): boolean {
-  return currentBlockHeight > offer.loan_expiration_height
+function isOfferExpired(offer: OfferShort, currentTime: number): boolean {
+  return currentTime > offer.loan_expiration_time
 }
 
 function resolveLenderAction(offer: OfferShort, expired: boolean): OfferAction {
@@ -55,10 +55,10 @@ function resolveBorrowerAction(offer: OfferShort): OfferAction {
 export function resolveOfferAction(
   offer: OfferShort,
   walletScriptPubkey: string | null,
-  currentBlockHeight: number,
+  currentTime: number,
 ): OfferAction {
   const role = resolveActorRole(offer, walletScriptPubkey)
-  const expired = isOfferExpired(offer, currentBlockHeight)
+  const expired = isOfferExpired(offer, currentTime)
 
   switch (role) {
     case 'lender':

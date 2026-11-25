@@ -3,6 +3,7 @@ import {
   useMutation,
   type UseMutationOptions,
   type UseMutationResult,
+  useQueries,
   useQuery,
   type UseQueryResult,
 } from '@tanstack/react-query'
@@ -15,7 +16,7 @@ import {
   fetchAddressTxs,
   fetchAddressUtxo,
   fetchBlockHashAtHeight,
-  fetchLatestBlockHeight,
+  fetchBlockTimestamp,
   fetchTx,
   fetchTxOutspends,
 } from './methods'
@@ -28,7 +29,7 @@ import type {
   ScriptHashUtxoEntry,
 } from './schemas'
 
-const DEFAULT_BLOCK_HEIGHT_POLL_MS = 30_000
+const DEFAULT_CLOCK_TICK_MS = 10_000
 
 export function useTx(txId: string): UseQueryResult<EsploraTx> {
   return useQuery({
@@ -79,17 +80,40 @@ export function useAddressTxs(
   })
 }
 
-export function useBlockHeight(
-  refetchIntervalMs: number = DEFAULT_BLOCK_HEIGHT_POLL_MS,
+const nowSeconds = () => Math.floor(Date.now() / 1000)
+
+/**
+ * The time loans expire against: now, in unix seconds. A Wharfedale block made now carries at
+ * least this timestamp, and time locks are checked against the block's own timestamp.
+ */
+export function useChainTime(
+  refetchIntervalMs: number = DEFAULT_CLOCK_TICK_MS,
 ): DefinedUseQueryResult<number> {
   return useQuery({
-    queryKey: esploraQueryKeys.blockHeight,
-    queryFn: ({ signal }) => fetchLatestBlockHeight({ signal }),
-    staleTime: STALE_TIME_MS.tip,
+    queryKey: esploraQueryKeys.chainTime,
+    queryFn: async () => nowSeconds(),
     refetchInterval: refetchIntervalMs,
-    initialData: 0,
-    initialDataUpdatedAt: 0,
+    initialData: nowSeconds,
   })
+}
+
+/** Timestamps of blocks by height (immutable once known). */
+export function useBlockTimestamps(heights: number[]): Record<number, number> {
+  const unique = [...new Set(heights)]
+  const results = useQueries({
+    queries: unique.map(height => ({
+      queryKey: esploraQueryKeys.blockTimestamp(height),
+      queryFn: ({ signal }: { signal: AbortSignal }) => fetchBlockTimestamp(height, { signal }),
+      staleTime: STALE_TIME_MS.immutable,
+      gcTime: GC_TIME_MS.immutable,
+    })),
+  })
+  const out: Record<number, number> = {}
+  unique.forEach((height, i) => {
+    const t = results[i]?.data
+    if (t !== undefined) out[height] = t
+  })
+  return out
 }
 
 export function useBlockHashAtHeight(blockHeight: number): UseQueryResult<string> {

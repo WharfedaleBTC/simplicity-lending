@@ -1,4 +1,4 @@
-use simplex::simplicityhl::elements::Txid;
+use lending_sdk::elements::Txid;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IssuanceFactoryError {

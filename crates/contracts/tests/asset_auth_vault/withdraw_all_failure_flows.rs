@@ -2,18 +2,18 @@ use lending_contracts::programs::asset_auth_vault::{
     ActiveAssetAuthVault, ActiveAssetAuthVaultParameters, FinalizedAssetAuthVault,
     FinalizedAssetAuthVaultParameters,
 };
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::signer::Signer;
-use simplex::simplicityhl::elements::Script;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Script;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::{
     final_supply, fund_keeper, issue_auth_assets, prepare_vault_asset, setup_asset_auth_vault,
 };
 
 fn setup_non_finalized_vault(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     keeper: &Signer,
     vault_asset_amounts: Vec<u64>,
     keeper_auth_asset_amount: u64,
@@ -44,7 +44,7 @@ fn setup_non_finalized_vault(
 }
 
 fn default_vault_withdrawing_all_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     keeper: &Signer,
     vault_asset_amounts: Vec<u64>,
     keeper_auth_asset_amount: u64,
@@ -63,10 +63,9 @@ fn default_vault_withdrawing_all_setup(
     Ok((finalized_vault, vault_parameters.into()))
 }
 
-#[simplex::test]
-fn withdraw_all_fails_when_vault_is_not_finalized(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_fails_when_vault_is_not_finalized() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -86,7 +85,7 @@ fn withdraw_all_fails_when_vault_is_not_finalized(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -112,10 +111,9 @@ fn withdraw_all_fails_when_vault_is_not_finalized(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_fails_when_auth_utxo_is_invalid(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_fails_when_auth_utxo_is_invalid() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -136,7 +134,7 @@ fn withdraw_all_fails_when_auth_utxo_is_invalid(
 
         ft.add_input(
             PartialInput::new(keeper_auth_utxo.clone()),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         ft.add_output(PartialOutput::new(
             keeper.get_address().script_pubkey(),
@@ -168,10 +166,9 @@ fn withdraw_all_fails_when_auth_utxo_is_invalid(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_fails_when_auth_utxo_has_less_than_minimum_amount(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_fails_when_auth_utxo_has_less_than_minimum_amount() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -195,7 +192,7 @@ fn withdraw_all_fails_when_auth_utxo_has_less_than_minimum_amount(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -226,10 +223,9 @@ fn withdraw_all_fails_when_auth_utxo_has_less_than_minimum_amount(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_fails_when_auth_utxo_burned_but_burn_flag_was_not_set() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -247,7 +243,7 @@ fn withdraw_all_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         Script::new_op_return(b"burn"),
@@ -273,10 +269,9 @@ fn withdraw_all_fails_when_auth_utxo_burned_but_burn_flag_was_not_set(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_fails_when_auth_utxo_was_not_burned_but_burn_flag_was_set(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_fails_when_auth_utxo_was_not_burned_but_burn_flag_was_set() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -294,7 +289,7 @@ fn withdraw_all_fails_when_auth_utxo_was_not_burned_but_burn_flag_was_set(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),

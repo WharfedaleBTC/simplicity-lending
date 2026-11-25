@@ -9,7 +9,7 @@ pub enum OfferSortBy {
     CollateralAmount,
     PrincipalAmount,
     InterestRate,
-    LoanExpirationHeight,
+    LoanExpirationTime,
 }
 
 impl OfferSortBy {
@@ -20,7 +20,7 @@ impl OfferSortBy {
             Self::CollateralAmount => "collateral_amount",
             Self::PrincipalAmount => "principal_amount",
             Self::InterestRate => "interest_rate",
-            Self::LoanExpirationHeight => "loan_expiration_height",
+            Self::LoanExpirationTime => "loan_expiration_time",
         }
     }
 }
@@ -197,12 +197,12 @@ mod tests {
         let params = OfferListParams::new()
             .with_limit(10)
             .with_offset(5)
-            .with_sort(OfferSortBy::LoanExpirationHeight, SortDir::Asc);
+            .with_sort(OfferSortBy::LoanExpirationTime, SortDir::Asc);
         let pairs = params.to_query_pairs();
 
         assert!(pairs.contains(&("limit", "10".to_string())));
         assert!(pairs.contains(&("offset", "5".to_string())));
-        assert!(pairs.contains(&("sort_by", "loan_expiration_height".to_string())));
+        assert!(pairs.contains(&("sort_by", "loan_expiration_time".to_string())));
         assert!(pairs.contains(&("sort_dir", "asc".to_string())));
     }
 

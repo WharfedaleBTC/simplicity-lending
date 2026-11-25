@@ -1,4 +1,4 @@
-use simplex::simplicityhl::elements::{Script, opcodes, script::Instruction};
+use lending_sdk::elements::{Script, opcodes, script::Instruction};
 
 pub fn op_return_payload(script: &Script) -> Option<&[u8]> {
     let mut instructions = script.instructions_minimal();

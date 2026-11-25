@@ -1,27 +1,6 @@
-import {
-  Address,
-  AssetId,
-  OutPoint,
-  type Pset,
-  SimplicityLogLevel,
-  type TxOutSecrets,
-} from 'lwk_wasm'
-
 import { fetchFeeRateSatPerKvbAbovePending } from '@/api/esplora/fee'
 import { NETWORK_CONFIG } from '@/constants/network-config'
-import { buildPset, type PsetBlinding } from '@/lwk/psetBuilder'
-import {
-  assertDistinctOutpoints,
-  assertExplicitAmount,
-  assertScriptMatches,
-  fetchTransaction,
-  requireExplicitAmount,
-  requireExplicitAsset,
-  requireTxOut,
-  type UpdatedPset,
-} from '@/lwk/transaction'
-import { isPolicyAssetUtxo, requireWalletUtxo, WALLET_INPUT_RBF_SEQUENCE } from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
+import { useChain } from '@/providers/chain/useChain'
 import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
 import { useWallet } from '@/providers/wallet/useWallet'
 import { loadAssetAuthProgram } from '@/simplicity/asset-auth/program'
@@ -30,19 +9,27 @@ import {
   buildDerivedLendingOfferProgramParams,
   buildLendingOfferSpendInfo,
   buildLendingWitness,
-  LENDING_MAX_WEIGHT_TO_SATISFY,
   loadLendingProgram,
 } from '@/simplicity/lending/program'
 import { getTotalAmountToRepay } from '@/simplicity/lending/utils'
-import {
-  buildScriptAuthWitness,
-  loadScriptAuthProgram,
-  SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY,
-} from '@/simplicity/script-auth/program'
+import { buildScriptAuthWitness, loadScriptAuthProgram } from '@/simplicity/script-auth/program'
 import { buildCovenantSpendInfo } from '@/simplicity/taproot'
 import { bytesToHex, hexToBytes } from '@/utils/hex'
 import { getProcessingTxids } from '@/utils/pendingTransactions'
 import { toBytes32, toUint32, toUint64 } from '@/utils/uint'
+import {
+  assertDistinctOutpoints,
+  assertExplicitAmount,
+  assertScriptMatches,
+  fetchTransaction,
+  type PreparedTransaction,
+  requireExplicitAmount,
+  requireExplicitAsset,
+  requireTxOut,
+  type TxSpec,
+} from '@/wharfedale/tx'
+import { Address, AssetId, OutPoint } from '@/wharfedale/types'
+import { isPolicyAssetUtxo, requireWalletUtxo, WALLET_INPUT_RBF_SEQUENCE } from '@/wharfedale/utxo'
 
 const NFT_AMOUNT = 1n
 
@@ -64,20 +51,13 @@ export interface AcceptOfferSummary {
 }
 
 export function useAcceptOffer() {
-  const { lwkNetwork } = useLwk()
-  const {
-    getReceiveAddress,
-    getChangeAddress,
-    getBlindedWalletUtxos,
-    getWollet,
-    syncWallet,
-    signerType,
-  } = useWallet()
+  const { chainNetwork } = useChain()
+  const { getReceiveAddress, getChangeAddress, getBlindedWalletUtxos, syncWallet } = useWallet()
   const { pendingTxs } = usePendingTransactions()
 
   const acceptOffer = async (
     params: AcceptOfferParams,
-  ): Promise<UpdatedPset<AcceptOfferSummary>> => {
+  ): Promise<PreparedTransaction<AcceptOfferSummary>> => {
     const pendingOfferOutpoint = new OutPoint(params.pendingOfferOutpoint)
     const lenderNftOutpoint = new OutPoint(params.lenderNftOutpoint)
     const borrowerNftReferenceOutpoint = new OutPoint(params.borrowerNftReferenceOutpoint)
@@ -93,11 +73,10 @@ export function useAcceptOffer() {
       ],
       'Acceptance outpoints must be distinct',
     )
-    const [receiveAddressString, wollet] = await Promise.all([getReceiveAddress(), getWollet()])
+    const receiveAddressString = await getReceiveAddress()
     if (!receiveAddressString) throw new Error('Missing receive address')
     const lenderNftRecipient = Address.parse(
       params.lenderNftRecipientAddress?.trim() || receiveAddressString,
-      lwkNetwork,
     ).toUnconfidential()
     await syncWallet()
     const blindedWalletUtxos = await getBlindedWalletUtxos()
@@ -107,7 +86,7 @@ export function useAcceptOffer() {
     const feeUtxos = params.feeOutpoints.map(o =>
       requireWalletUtxo(blindedWalletUtxos, o, `Fee ${NETWORK_CONFIG.collateralAsset.symbol}`),
     )
-    if (feeUtxos.some(utxo => !isPolicyAssetUtxo(utxo, lwkNetwork.policyAsset()))) {
+    if (feeUtxos.some(utxo => !isPolicyAssetUtxo(utxo, chainNetwork.policyAsset()))) {
       throw new Error(`Fee outpoints must be wallet ${NETWORK_CONFIG.collateralAsset.symbol} UTXOs`)
     }
     const [pendingOfferTx, lenderNftTx, borrowerNftTx, feeTxs, feeRate] = await Promise.all([
@@ -128,7 +107,7 @@ export function useAcceptOffer() {
       borrowerNftReferenceOutpoint.vout(),
       'Borrower NFT reference',
     )
-    const feeTxOuts = feeTxs.map((tx, index) =>
+    feeTxs.forEach((tx, index) =>
       requireTxOut(tx, feeOutpoints[index].vout(), `Fee ${NETWORK_CONFIG.collateralAsset.symbol}`),
     )
 
@@ -207,53 +186,52 @@ export function useAcceptOffer() {
     const principalTransactions = await Promise.all(
       principalOutpoints.map(outpoint => fetchTransaction(outpoint)),
     )
-    const principalTxOuts = principalTransactions.map((tx, index) =>
+    principalTransactions.forEach((tx, index) =>
       requireTxOut(tx, principalOutpoints[index].vout(), 'Principal input'),
     )
     if (principalUtxos.length + feeUtxos.length === 0) {
       throw new Error('At least one wallet UTXO is required')
     }
-    const blinding: PsetBlinding = signerType === 'humid' ? 'wallet' : 'local'
     const walletInputs = [
-      ...principalUtxos.map((utxo, index) => ({
-        utxo,
+      ...principalUtxos.map((_utxo, index) => ({
         outpoint: principalOutpoints[index],
-        prevout: principalTxOuts[index],
+        prevout: requireTxOut(
+          principalTransactions[index],
+          principalOutpoints[index].vout(),
+          'Principal input',
+        ),
       })),
-      ...feeUtxos.map((utxo, index) => ({
-        utxo,
+      ...feeUtxos.map((_utxo, index) => ({
         outpoint: feeOutpoints[index],
-        prevout: feeTxOuts[index],
+        prevout: requireTxOut(feeTxs[index], feeOutpoints[index].vout(), 'Fee'),
       })),
     ]
 
     const changeAddress = await getChangeAddress()
-    const { pset } = buildPset({
-      network: lwkNetwork,
+    const spec: TxSpec = {
       inputs: [
         {
           outpoint: pendingOfferOutpoint,
           prevout: pendingOfferTxOut,
-          asset: collateralAsset,
-          amount: collateralAmount,
-          maxWeightToSatisfy: LENDING_MAX_WEIGHT_TO_SATISFY.OfferAcceptance,
+          program: {
+            program: lendingProgram,
+            storage: pendingLendingSpendInfo.storage.map(hexToBytes),
+            witness: buildLendingWitness({ branch: 'OfferAcceptance' }),
+          },
         },
         {
           outpoint: lenderNftOutpoint,
           prevout: lenderNftTxOut,
-          asset: lenderNftAsset,
-          amount: NFT_AMOUNT,
-          maxWeightToSatisfy: SCRIPT_AUTH_MAX_WEIGHT_TO_SATISFY,
+          program: {
+            program: scriptAuthProgram,
+            witness: buildScriptAuthWitness(toUint32(0, 'lendingInputIndex')),
+          },
         },
-        ...walletInputs.map(({ utxo, outpoint, prevout }, index) => ({
+        ...walletInputs.map(({ outpoint, prevout }, index) => ({
           outpoint,
           prevout,
-          asset: utxo.unblinded().asset(),
-          amount: utxo.unblinded().value(),
-          secrets: blinding === 'local' ? (utxo.unblinded() as TxOutSecrets) : undefined,
           walletCoin: true,
           sequence: index === 0 ? WALLET_INPUT_RBF_SEQUENCE : undefined,
-          maxWeightToSatisfy: wollet.maxWeightToSatisfy(),
         })),
       ],
       outputs: [
@@ -279,98 +257,52 @@ export function useAcceptOffer() {
             ]
           : []),
       ],
-      changeAddress,
-      feeRateSatPerKvb: feeRate,
-      blinding,
-    })
-    pset.addDetails(wollet)
+    }
 
     return {
-      pset,
-      finalize: (signedPset: Pset) => {
-        const txWithWalletWitnesses = wollet.finalize(signedPset).extractTx()
-
-        const prevouts = [pendingOfferTxOut, lenderNftTxOut, ...principalTxOuts, ...feeTxOuts]
-        const txWithLendingWitness = lendingProgram.finalizeTransaction(
-          txWithWalletWitnesses,
-          pendingLendingSpendInfo.controlBlock(lendingProgram.cmr),
-          prevouts,
-          0,
-          buildLendingWitness({ branch: 'OfferAcceptance' }),
-          lwkNetwork,
-          SimplicityLogLevel.Trace,
-        )
-
-        const scriptAuthPrevouts = [
-          requireTxOut(pendingOfferTx, pendingOfferOutpoint.vout(), 'Pending offer'),
-          requireTxOut(lenderNftTx, lenderNftOutpoint.vout(), 'Lender NFT'),
-          ...principalTransactions.map((tx, index) =>
-            requireTxOut(tx, principalOutpoints[index].vout(), 'Principal input'),
+      spec,
+      feeRateSatPerKvb: feeRate,
+      summary: {
+        // TODO: Remove debug summary before release
+        inputs: {
+          '0 Pending offer Lending': params.pendingOfferOutpoint,
+          '1 Lender NFT ScriptAuth': params.lenderNftOutpoint,
+          '2+ Principal wallet UTXO(s)': params.principalOutpoints.join(', '),
+          [`Fee ${NETWORK_CONFIG.collateralAsset.symbol} (wallet)`]: params.feeOutpoints.join(', '),
+          'Reference Borrower NFT': params.borrowerNftReferenceOutpoint,
+        },
+        outputs: {
+          '0 Active offer Lending': bytesToHex(activeLendingSpendInfo.scriptPubkey.bytes()),
+          '1 Borrower principal AssetAuth': bytesToHex(
+            principalOutputSpendInfo.scriptPubkey.bytes(),
           ),
-          ...feeTxs.map((tx, index) =>
-            requireTxOut(
-              tx,
-              feeOutpoints[index].vout(),
-              `Fee ${NETWORK_CONFIG.collateralAsset.symbol}`,
-            ),
-          ),
-        ]
-        const finalizedTx = scriptAuthProgram.finalizeTransaction(
-          txWithLendingWitness,
-          scriptAuthSpendInfo.controlBlock(scriptAuthProgram.cmr),
-          scriptAuthPrevouts,
-          1,
-          buildScriptAuthWitness(toUint32(0, 'lendingInputIndex')),
-          lwkNetwork,
-          SimplicityLogLevel.Trace,
-        )
-
-        return {
-          finalizedTx,
-          // TODO: Remove debug summary before release
-          summary: {
-            inputs: {
-              '0 Pending offer Lending': params.pendingOfferOutpoint,
-              '1 Lender NFT ScriptAuth': params.lenderNftOutpoint,
-              '2+ Principal wallet UTXO(s)': params.principalOutpoints.join(', '),
-              [`Fee ${NETWORK_CONFIG.collateralAsset.symbol} (wallet)`]:
-                params.feeOutpoints.join(', '),
-              'Reference Borrower NFT': params.borrowerNftReferenceOutpoint,
-            },
-            outputs: {
-              '0 Active offer Lending': bytesToHex(activeLendingSpendInfo.scriptPubkey.bytes()),
-              '1 Borrower principal AssetAuth': bytesToHex(
-                principalOutputSpendInfo.scriptPubkey.bytes(),
-              ),
-              '2 Lender NFT recipient': lenderNftRecipient.toString(),
-              'Principal change':
-                principalChangeAmount > 0n
-                  ? `${principalChangeAmount.toString()} to ${changeAddress.toString()}`
-                  : 'None',
-              [`${NETWORK_CONFIG.collateralAsset.symbol} change`]:
-                'Managed by LWK after covenant outputs',
-            },
-            assetIds: {
-              collateralAssetId: collateralAsset.toString(),
-              principalAssetId: principalAsset.toString(),
-              borrowerNftAssetId: borrowerNftAsset.toString(),
-              lenderNftAssetId: lenderNftAsset.toString(),
-            },
-            offerParameters: {
-              collateralAmount: collateralAmount.toString(),
-              principalAmount: metadata.principalAmount.toString(),
-              principalInputAmount: principalInputAmount.toString(),
-              principalInterestRate: metadata.principalInterestRate.toString(),
-              totalAmountToRepay: totalAmountToRepay.toString(),
-              loanExpirationTime: metadata.loanExpirationTime.toString(),
-            },
-            scripts: {
-              pendingLendingScriptHash: bytesToHex(pendingLendingScriptHash),
-              activeLendingScript: bytesToHex(activeLendingSpendInfo.scriptPubkey.bytes()),
-              principalOutputScriptHash: bytesToHex(derivedLendingParams.principalOutputScriptHash),
-            },
-          },
-        }
+          '2 Lender NFT recipient': lenderNftRecipient.toString(),
+          'Principal change':
+            principalChangeAmount > 0n
+              ? `${principalChangeAmount.toString()} to ${changeAddress.toString()}`
+              : 'None',
+          [`${NETWORK_CONFIG.collateralAsset.symbol} change`]:
+            'Added by the wallet after the covenant outputs',
+        },
+        assetIds: {
+          collateralAssetId: collateralAsset.toString(),
+          principalAssetId: principalAsset.toString(),
+          borrowerNftAssetId: borrowerNftAsset.toString(),
+          lenderNftAssetId: lenderNftAsset.toString(),
+        },
+        offerParameters: {
+          collateralAmount: collateralAmount.toString(),
+          principalAmount: metadata.principalAmount.toString(),
+          principalInputAmount: principalInputAmount.toString(),
+          principalInterestRate: metadata.principalInterestRate.toString(),
+          totalAmountToRepay: totalAmountToRepay.toString(),
+          loanExpirationTime: metadata.loanExpirationTime.toString(),
+        },
+        scripts: {
+          pendingLendingScriptHash: bytesToHex(pendingLendingScriptHash),
+          activeLendingScript: bytesToHex(activeLendingSpendInfo.scriptPubkey.bytes()),
+          principalOutputScriptHash: bytesToHex(derivedLendingParams.principalOutputScriptHash),
+        },
       },
     }
   }

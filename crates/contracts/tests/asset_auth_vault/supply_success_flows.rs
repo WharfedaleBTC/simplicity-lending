@@ -1,9 +1,9 @@
 use lending_contracts::programs::asset_auth_vault::{
     ActiveAssetAuthVault, ActiveAssetAuthVaultParameters, FinalizedAssetAuthVaultParameters,
 };
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::{
     check_vault_amount, issue_auth_assets, make_confidential, prepare_vault_asset,
@@ -11,7 +11,7 @@ use super::setup::{
 };
 
 fn default_vault_supplying_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     vault_asset_amounts: Vec<u64>,
 ) -> anyhow::Result<(ActiveAssetAuthVault, ActiveAssetAuthVaultParameters)> {
     let (supplier_asset_id, keeper_asset_id) = issue_auth_assets(context, 1, 1)?;
@@ -35,8 +35,9 @@ fn default_vault_supplying_setup(
     Ok((asset_auth_vault, active_vault_parameters))
 }
 
-#[simplex::test]
-fn supplies_to_vault_with_explicit_input(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn supplies_to_vault_with_explicit_input() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -59,7 +60,7 @@ fn supplies_to_vault_with_explicit_input(context: simplex::TestContext) -> anyho
     ));
     ft.add_input(
         PartialInput::new(supplier_auth_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let expected_vault_balance = asset_auth_vault_utxo.explicit_amount() + amount_to_supply;
@@ -68,7 +69,7 @@ fn supplies_to_vault_with_explicit_input(context: simplex::TestContext) -> anyho
 
     ft.add_input(
         PartialInput::new(utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     signer.broadcast(&ft)?.wait()?;
@@ -78,10 +79,9 @@ fn supplies_to_vault_with_explicit_input(context: simplex::TestContext) -> anyho
     Ok(())
 }
 
-#[simplex::test]
-fn supplies_to_vault_with_several_explicit_inputs(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn supplies_to_vault_with_several_explicit_inputs() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -106,15 +106,15 @@ fn supplies_to_vault_with_several_explicit_inputs(
 
     ft.add_input(
         PartialInput::new(supplier_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_input(
         PartialInput::new(first_utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_input(
         PartialInput::new(second_utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -140,8 +140,9 @@ fn supplies_to_vault_with_several_explicit_inputs(
     Ok(())
 }
 
-#[simplex::test]
-fn supplies_to_vault_with_confidential_input(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn supplies_to_vault_with_confidential_input() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -162,11 +163,11 @@ fn supplies_to_vault_with_confidential_input(context: simplex::TestContext) -> a
 
     ft.add_input(
         PartialInput::new(conf_utxo_to_supply),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_input(
         PartialInput::new(supplier_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let expected_vault_balance = asset_auth_vault_utxo.explicit_amount() + amount_to_supply;

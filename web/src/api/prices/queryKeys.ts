@@ -1,3 +1,3 @@
 export const pricesQueryKeys = {
-  liquidUsd: ['prices', 'liquid', 'usd'] as const,
+  usd: ['prices', 'usd'] as const,
 } as const

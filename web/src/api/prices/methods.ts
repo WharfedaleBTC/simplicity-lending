@@ -1,34 +1,36 @@
-import { env } from '@/constants/env'
 import { NETWORK_CONFIG } from '@/constants/network-config'
+import { ErrorHandler } from '@/utils/errorHandler'
 
 import { requestJson, type RequestParams } from '../client'
-import { type AssetPricesUsd, liquidPricesResponseSchema } from './schemas'
+import { ApiAbortError } from '../errors'
+import { type AssetPricesUsd, coinbaseSpotSchema } from './schemas'
 
-// Backend bug: the testnet prices endpoint returns mainnet LBTC/USDT asset IDs
-// instead of testnet ones. Remap them to the testnet IDs from network-config
-// until it's fixed — once fixed, delete this whole block to revert.
-const MAINNET_LBTC_ID = '6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d'
-const MAINNET_USDT_ID = 'ce091c998b83c78bb71a632313ba3760f1763d9cfcffae02258ffa9865a37bd2'
+/** BTC/USD spot from Coinbase's public API: no key, and it allows any origin. */
+export const BTC_USD_URL = 'https://api.coinbase.com/v2/prices/BTC-USD/spot'
 
-function applyTestnetAssetIdMock(data: Record<string, string>): Record<string, string> {
-  if (env.VITE_NETWORK !== 'liquidtestnet') return data
-  return Object.fromEntries(
-    Object.entries(data).map(([assetId, price]) => {
-      if (assetId === MAINNET_LBTC_ID) return [NETWORK_CONFIG.collateralAsset.id, price]
-      if (assetId === MAINNET_USDT_ID) return [NETWORK_CONFIG.principalAsset.id, price]
-      return [assetId, price]
-    }),
-  )
+/** The live BTC/USD price, or null if it can't be fetched. */
+export async function fetchBtcUsd(options: RequestParams = {}): Promise<number | null> {
+  try {
+    const { data } = await requestJson(BTC_USD_URL, coinbaseSpotSchema, {
+      signal: options.signal,
+    })
+    const price = Number(data.amount)
+    return Number.isFinite(price) && price > 0 ? price : null
+  } catch (error) {
+    if (error instanceof ApiAbortError) throw error
+    ErrorHandler.processWithoutFeedback(error)
+    return null
+  }
 }
 
-export async function fetchLiquidPricesUsd(options: RequestParams = {}): Promise<AssetPricesUsd> {
-  const response = await requestJson(
-    `${env.VITE_API_URL}/prices/v1/liquid/USD`,
-    liquidPricesResponseSchema,
-    { signal: options.signal },
-  )
-  const data = applyTestnetAssetIdMock(response.data)
-  return Object.fromEntries(
-    Object.entries(data).map(([assetId, price]) => [assetId, Number(price)]),
-  )
+/**
+ * USD prices per asset id, for LTV and USD figures in the UI (the contracts don't use prices).
+ * WBTC follows the live BTC/USD price; the deployment's /config.json (`pricesUsd`) gives the
+ * principal's price, and WBTC's when the live price can't be fetched.
+ */
+export async function fetchPricesUsd(options: RequestParams = {}): Promise<AssetPricesUsd> {
+  const prices = { ...NETWORK_CONFIG.pricesUsd }
+  const btcUsd = await fetchBtcUsd(options)
+  if (btcUsd !== null) prices[NETWORK_CONFIG.collateralAsset.id] = btcUsd
+  return prices
 }

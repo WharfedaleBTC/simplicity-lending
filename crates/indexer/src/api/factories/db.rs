@@ -1,4 +1,4 @@
-use simplex::simplicityhl::elements::hex::ToHex;
+use lending_sdk::hex::ToHex;
 use sqlx::PgPool;
 use uuid::Uuid;
 

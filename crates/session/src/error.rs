@@ -1,5 +1,5 @@
-use simplex::provider::ProviderError;
-use simplex::signer::SignerError;
+use lending_sdk::provider::ProviderError;
+use lending_sdk::signer::SignerError;
 
 use lending_contracts::programs::issuance_factory::IssuanceFactoryError;
 

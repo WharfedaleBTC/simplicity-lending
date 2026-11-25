@@ -1,13 +1,14 @@
 use uuid::Uuid;
 
-use simplex::{
-    provider::SimplicityNetwork,
-    simplicityhl::elements::{AssetId, Transaction, hex::ToHex},
+use lending_sdk::{
+    Network,
+    elements::{AssetId, Transaction},
+    hex::ToHex,
 };
 
 use lending_contracts::programs::{
     lending::{LendingOffer, LendingOfferParameters},
-    program::SimplexProgram,
+    program::SimplicityProgram,
 };
 
 use crate::{
@@ -29,14 +30,14 @@ struct ParsedOfferCreation {
 
 pub struct OfferCreationsTracker {
     protocol_fee_keeper_asset_id: AssetId,
-    network: SimplicityNetwork,
+    network: Network,
     asset_registration: Option<AssetRegistration>,
 }
 
 impl OfferCreationsTracker {
     pub fn new(
         protocol_fee_keeper_asset_id: AssetId,
-        network: SimplicityNetwork,
+        network: Network,
         asset_registration: Option<AssetRegistration>,
     ) -> Self {
         Self {

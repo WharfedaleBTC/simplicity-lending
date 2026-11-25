@@ -1,13 +1,12 @@
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::transaction::{FinalTransaction, PartialInput, RequiredSignature};
+use lending_sdk::transaction::{FinalTransaction, PartialInput, RequiredSignature};
 
 use super::setup::setup_issuance_factory;
 
-#[simplex::test]
-fn fails_to_remove_issuance_factory_with_invalid_inputs_order(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn fails_to_remove_issuance_factory_with_invalid_inputs_order() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -22,10 +21,7 @@ fn fails_to_remove_issuance_factory_with_invalid_inputs_order(
 
     let auth_nft_utxo = signer.get_utxos_asset(factory_asset_id)?[0].clone();
 
-    ft.add_input(
-        PartialInput::new(auth_nft_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(auth_nft_utxo), RequiredSignature::KeyPath);
 
     issuance_factory.attach_factory_removing(&mut ft, issuance_factory_utxo);
 

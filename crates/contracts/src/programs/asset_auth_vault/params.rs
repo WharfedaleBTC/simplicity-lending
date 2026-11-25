@@ -1,8 +1,8 @@
-use simplex::{provider::SimplicityNetwork, simplicityhl::elements::AssetId};
+use lending_sdk::{Network, elements::AssetId};
 
 use crate::{
     artifacts::asset_auth_vault::derived_asset_auth_vault::AssetAuthVaultArguments,
-    programs::{asset_auth_vault::FinalizedAssetAuthVault, program::SimplexProgram},
+    programs::{asset_auth_vault::FinalizedAssetAuthVault, program::SimplicityProgram},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -14,7 +14,7 @@ pub struct ActiveAssetAuthVaultParameters {
     pub keeper_min_asset_amount: u64,
     pub with_keeper_asset_burn: bool,
     pub with_supplier_asset_burn: bool,
-    pub network: SimplicityNetwork,
+    pub network: Network,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -25,7 +25,7 @@ pub struct FinalizedAssetAuthVaultParameters {
     pub keeper_min_asset_amount: u64,
     pub with_keeper_asset_burn: bool,
     pub with_supplier_asset_burn: bool,
-    pub network: SimplicityNetwork,
+    pub network: Network,
 }
 
 impl From<ActiveAssetAuthVaultParameters> for FinalizedAssetAuthVaultParameters {
@@ -62,9 +62,9 @@ impl From<FinalizedAssetAuthVaultParameters> for ActiveAssetAuthVaultParameters 
 impl ActiveAssetAuthVaultParameters {
     pub fn build_arguments(&self) -> AssetAuthVaultArguments {
         AssetAuthVaultArguments {
-            vault_asset_id: self.vault_asset_id.into_inner().0,
-            keeper_auth_asset_id: self.keeper_asset_id.into_inner().0,
-            supplier_auth_asset_id: self.supplier_asset_id.into_inner().0,
+            vault_asset_id: self.vault_asset_id.to_byte_array(),
+            keeper_auth_asset_id: self.keeper_asset_id.to_byte_array(),
+            supplier_auth_asset_id: self.supplier_asset_id.to_byte_array(),
             keeper_auth_asset_amount: self.keeper_min_asset_amount,
             finalized_vault_cov_hash: self.finalized_vault_cov_hash,
             is_active: true,
@@ -77,9 +77,9 @@ impl ActiveAssetAuthVaultParameters {
 impl FinalizedAssetAuthVaultParameters {
     pub fn build_arguments(&self) -> AssetAuthVaultArguments {
         AssetAuthVaultArguments {
-            vault_asset_id: self.vault_asset_id.into_inner().0,
-            keeper_auth_asset_id: self.keeper_asset_id.into_inner().0,
-            supplier_auth_asset_id: self.supplier_asset_id.into_inner().0,
+            vault_asset_id: self.vault_asset_id.to_byte_array(),
+            keeper_auth_asset_id: self.keeper_asset_id.to_byte_array(),
+            supplier_auth_asset_id: self.supplier_asset_id.to_byte_array(),
             keeper_auth_asset_amount: self.keeper_min_asset_amount,
             finalized_vault_cov_hash: [0u8; 32],
             is_active: false,

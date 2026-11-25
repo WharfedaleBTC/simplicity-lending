@@ -1,12 +1,13 @@
 import { env } from '@/constants/env'
 import { isHexString } from '@/utils/hex'
 
-import { requestBytes, requestJson, type RequestParams, requestText } from '../client'
+import { requestJson, type RequestParams, requestText } from '../client'
 import { ApiError, BroadcastError } from '../errors'
 import {
   type AddressInfo,
   addressInfoSchema,
   blockHeightTextSchema,
+  blockTimestampSchema,
   type EsploraOutspend,
   esploraOutspendListSchema,
   type EsploraTx,
@@ -22,8 +23,9 @@ import {
   txStatusSchema,
 } from './schemas'
 
+// A Wharfedale node serves the Esplora API at its root; the web server proxies it.
 function buildEsploraUrl(path: string): string {
-  return `${env.VITE_ESPLORA_BASE_URL}/api${path}`
+  return `${env.VITE_ESPLORA_BASE_URL.replace(/\/$/, '')}${path}`
 }
 
 type Resource = 'address' | 'scripthash'
@@ -58,8 +60,8 @@ export async function fetchTxConfirmations(
   return tip - status.block_height + 1
 }
 
-export async function fetchTxRaw(txId: string, options: RequestParams = {}): Promise<Uint8Array> {
-  return requestBytes(buildEsploraUrl(`/tx/${txId}/raw`), { signal: options.signal })
+export async function fetchTxHex(txId: string, options: RequestParams = {}): Promise<string> {
+  return (await requestText(buildEsploraUrl(`/tx/${txId}/hex`), { signal: options.signal })).trim()
 }
 
 export async function fetchTxOutspends(
@@ -71,9 +73,12 @@ export async function fetchTxOutspends(
   })
 }
 
-// https://github.com/ElementsProject/elements/blob/elements-23.3.1/src/validation.cpp
-// https://github.com/ElementsProject/elements/blob/elements-23.3.1/src/policy/policy.cpp
+// Wharfedale's mempool rejections (crates/mempool), worded as Elements' where they match.
 const BROADCAST_ERROR_PATTERNS: [RegExp, string][] = [
+  [
+    /lock_time not reached|sequence lock/i,
+    'This can only be done later: the transaction is time-locked. Please wait and try again.',
+  ],
   [
     /min relay fee not met|insufficient fee/i,
     'Network fee is too low. Please increase the fee and try again.',
@@ -145,6 +150,18 @@ export async function fetchBlockHashAtHeight(
   options: RequestParams = {},
 ): Promise<string> {
   return requestText(buildEsploraUrl(`/block-height/${blockHeight}`), { signal: options.signal })
+}
+
+/** Timestamp (unix seconds) of the block at `blockHeight`. */
+export async function fetchBlockTimestamp(
+  blockHeight: number,
+  options: RequestParams = {},
+): Promise<number> {
+  const hash = (await fetchBlockHashAtHeight(blockHeight, options)).trim()
+  const block = await requestJson(buildEsploraUrl(`/block/${hash}`), blockTimestampSchema, {
+    signal: options.signal,
+  })
+  return block.timestamp
 }
 
 export async function fetchBlockTxIds(

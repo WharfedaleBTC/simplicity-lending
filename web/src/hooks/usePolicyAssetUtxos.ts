@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { isConfirmedWalletUtxo, isPolicyAssetUtxo, utxoToOutpointString } from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
+import { useChain } from '@/providers/chain/useChain'
 import { useWallet } from '@/providers/wallet/useWallet'
+import { isConfirmedWalletUtxo, isPolicyAssetUtxo, utxoToOutpointString } from '@/wharfedale/utxo'
 
 export interface PolicyAssetUtxo {
   outpoint: string
@@ -15,7 +15,7 @@ interface UsePolicyAssetUtxosResult {
 }
 
 export function usePolicyAssetUtxos(enabled: boolean): UsePolicyAssetUtxosResult {
-  const { lwkNetwork } = useLwk()
+  const { chainNetwork: lwkNetwork } = useChain()
   const { getBlindedWalletUtxos, scriptPubkey } = useWallet()
 
   const { data, isLoading } = useQuery({

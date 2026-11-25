@@ -3,8 +3,7 @@
 
 use std::time::Duration;
 
-use simplex::simplicityhl::elements::secp256k1_zkp::ZERO_TWEAK;
-use simplex::simplicityhl::elements::{AssetId, ContractHash, OutPoint, Transaction};
+use lending_sdk::elements::{AssetId, ContractHash, OutPoint, Transaction};
 
 use serde_json::json;
 
@@ -112,7 +111,7 @@ impl AssetRegistration {
             .input
             .iter()
             .filter(|input| {
-                input.has_issuance() && input.asset_issuance.asset_blinding_nonce == ZERO_TWEAK
+                input.has_issuance() && input.asset_issuance.asset_blinding_nonce.is_null()
             })
             .find_map(|input| {
                 let prevout = input.previous_output;
@@ -211,7 +210,7 @@ impl AssetRegistration {
 
 #[cfg(test)]
 mod tests {
-    use simplex::simplicityhl::elements::OutPoint;
+    use lending_sdk::elements::OutPoint;
 
     use super::{AssetContractKind, AssetRegistration};
     use crate::configuration::AssetRegistrySettings;
@@ -264,7 +263,7 @@ mod tests {
     /// created through lending.dev.blockstream.com.
     #[test]
     fn expected_contract_matches_live_issuance() {
-        use simplex::simplicityhl::elements::{AssetId, ContractHash};
+        use lending_sdk::elements::{AssetId, ContractHash};
 
         let registration = registration("lending.dev.blockstream.com");
         let prevout = OutPoint::new(

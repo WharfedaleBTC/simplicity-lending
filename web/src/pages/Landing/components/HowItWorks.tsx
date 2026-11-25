@@ -19,7 +19,7 @@ const STEPS = [
     icon: LockIcon,
     title: 'Lock Collateral',
     description:
-      'Lock your LBTC into a Simplicity smart contract. All loans are 100% secured and overcollateralized.',
+      'Lock your WBTC into a Simplicity smart contract. All loans are 100% secured and overcollateralized.',
   },
   {
     icon: ChecksIcon,

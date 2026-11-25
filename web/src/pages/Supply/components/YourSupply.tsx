@@ -1,7 +1,7 @@
 import { Skeleton } from '@heroui/react'
 import { keepPreviousData } from '@tanstack/react-query'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useChainTime } from '@/api/esplora/hooks'
 import { useLenderOffers } from '@/api/indexer/hooks'
 import ArrowSquareUpIcon from '@/components/icons/ArrowSquareUpIcon'
 import { OffersLoadError } from '@/components/OffersLoadError'
@@ -13,7 +13,7 @@ const SUPPLY_PAGE_SIZE = 10
 
 export default function YourSupply() {
   const { scriptPubkey } = useWallet()
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
 
   const { page, setPage, params, sort, setSort, statusFilter, setStatusFilter } =
     useOfferListControls({ pageSize: SUPPLY_PAGE_SIZE })
@@ -51,7 +51,7 @@ export default function YourSupply() {
       ) : (
         <OffersTable
           offers={offers}
-          currentBlockHeight={currentBlockHeight}
+          currentTime={currentTime}
           page={page}
           pageCount={pageCount}
           emptyMessage='No active loans'

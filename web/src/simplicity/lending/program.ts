@@ -1,13 +1,3 @@
-import {
-  SimplicityArguments,
-  SimplicityProgram,
-  SimplicityType,
-  SimplicityTypedValue,
-  SimplicityWitnessValues,
-  StateTaprootBuilder,
-  type StateTaprootSpendInfo,
-  XOnlyPublicKey,
-} from 'lwk_wasm'
 import { sources } from 'virtual:simplicity-sources'
 
 import { loadAssetAuthProgram } from '@/simplicity/asset-auth/program'
@@ -16,8 +6,8 @@ import {
   loadAssetAuthVaultProgram,
 } from '@/simplicity/asset-auth-vault/program'
 import { getTotalAmountToRepay } from '@/simplicity/lending/utils'
-import { buildCovenantSpendInfo, UNSPENDABLE_TAPROOT_PUBKEY } from '@/simplicity/taproot'
-import { bytes32ToHex, hexToBytes } from '@/utils/hex'
+import { buildCovenantSpendInfo } from '@/simplicity/taproot'
+import { bytes32ToHex } from '@/utils/hex'
 import {
   type Bytes32,
   toBytes32,
@@ -26,6 +16,14 @@ import {
   type Uint32,
   type Uint64,
 } from '@/utils/uint'
+import {
+  SimplicityArguments,
+  SimplicityProgram,
+  SimplicityType,
+  SimplicityTypedValue,
+  SimplicityWitnessValues,
+  type SpendInfo,
+} from '@/wharfedale/simplicity'
 
 const ARGUMENTS = {
   COLLATERAL_ASSET_ID: 'COLLATERAL_ASSET_ID',
@@ -234,12 +232,25 @@ export function buildDerivedLendingOfferProgramParams(
 }
 
 function getProgramScriptHash(program: SimplicityProgram): Bytes32 {
-  return toBytes32(
-    hexToBytes(buildCovenantSpendInfo(program).scriptPubkey.jet_sha256_hex()),
-    'programScriptHash',
-  )
+  return toBytes32(buildCovenantSpendInfo(program).scriptHash, 'programScriptHash')
 }
 
+/** The offer's storage slots: [is active, debt still to repay], as the covenant rebuilds them. */
+export function buildLendingOfferStorage(isActive: boolean, debt: bigint): Uint8Array[] {
+  const isActiveSlot = new Uint8Array(32)
+  isActiveSlot[31] = isActive ? 1 : 0
+
+  const debtSlot = new Uint8Array(32)
+  new DataView(debtSlot.buffer).setBigUint64(24, debt, false)
+
+  return [isActiveSlot, debtSlot]
+}
+
+/**
+ * The offer's output: the Lending leaf with its two storage slots beside it (depths 2, 2, 1)
+ * under the NUMS key. A pending offer stores the total to repay; `debt` overrides it for an
+ * active offer that was partly repaid.
+ */
 export function buildLendingOfferSpendInfo(
   lendingProgram: SimplicityProgram,
   offerParameters: {
@@ -247,22 +258,10 @@ export function buildLendingOfferSpendInfo(
     principalInterestRate: Uint16
   },
   isActive = false,
-): StateTaprootSpendInfo {
+  debt?: bigint,
+): SpendInfo {
   const totalAmountToRepay = getTotalAmountToRepay(offerParameters)
-
-  const isActiveSlot = new Uint8Array(32)
-  isActiveSlot[31] = isActive ? 1 : 0
-
-  const debtSlot = new Uint8Array(32)
-  new DataView(debtSlot.buffer).setBigUint64(24, totalAmountToRepay, false)
-
-  const numsKey = XOnlyPublicKey.fromString(UNSPENDABLE_TAPROOT_PUBKEY)
-
-  return new StateTaprootBuilder()
-    .addSimplicityLeaf(2, lendingProgram.cmr)
-    .addDataLeaf(2, isActiveSlot)
-    .addDataLeaf(1, debtSlot)
-    .finalize(numsKey)
+  return lendingProgram.spendInfo(buildLendingOfferStorage(isActive, debt ?? totalAmountToRepay))
 }
 
 export function buildLendingWitness(params: LendingOfferWitnessParams): SimplicityWitnessValues {

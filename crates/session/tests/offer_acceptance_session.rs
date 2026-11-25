@@ -1,7 +1,7 @@
 mod utils;
 
 use lending_contracts::programs::lending::LendingOfferParameters;
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_indexer::indexer::update_offer_status;
 use lending_indexer::models::OfferStatus;
 use lending_session::SessionError;

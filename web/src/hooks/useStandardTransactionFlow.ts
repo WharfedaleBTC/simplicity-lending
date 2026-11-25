@@ -2,9 +2,9 @@ import { useCallback } from 'react'
 
 import { broadcastTx } from '@/api/esplora/methods'
 import { getStandardTransactionSteps } from '@/components/TransactionStepper/transactionSteps'
-import type { UpdatedPset } from '@/lwk/transaction'
 import { useTxProgress } from '@/providers/txProgress/useTxProgress'
 import { useWallet } from '@/providers/wallet/useWallet'
+import type { PreparedTransaction } from '@/wharfedale/tx'
 
 export interface TransactionFlowResult<TSummary> {
   txid: string
@@ -12,36 +12,45 @@ export interface TransactionFlowResult<TSummary> {
 }
 
 type RunStandardTransactionFlow = <TSummary>(
-  build: () => Promise<UpdatedPset<TSummary>>,
+  build: () => Promise<PreparedTransaction<TSummary>>,
 ) => Promise<TransactionFlowResult<TSummary>>
 
 export function useStandardTransactionFlow(): RunStandardTransactionFlow {
-  const { signPset, signerType, applyBroadcastTransaction } = useWallet()
+  const { completeTransaction, signerType, applyBroadcastTransaction } = useWallet()
   const { startTxProgress, setTxProgressError } = useTxProgress()
 
   return useCallback<RunStandardTransactionFlow>(
-    async build => {
+    async <TSummary>(build: () => Promise<PreparedTransaction<TSummary>>) => {
       try {
         const advance = startTxProgress(getStandardTransactionSteps(signerType))
-        const { pset, finalize } = await build()
+        const { spec, summary, feeRateSatPerKvb } = await build()
 
+        // Funding, blinding, signing and the covenant witnesses happen in one step here.
         await advance('signing')
-        const signedPset = await signPset(pset)
+        const { tx } = await completeTransaction(spec, feeRateSatPerKvb)
 
         await advance('finalizing')
-        const { finalizedTx, summary } = finalize(signedPset)
-
         await advance('broadcasting')
-        const txid = await broadcastTx(finalizedTx.toString())
+        const txid = await broadcastTx(tx.toString())
 
-        applyBroadcastTransaction(finalizedTx)
+        applyBroadcastTransaction(tx)
 
-        return { txid, summary }
+        return {
+          txid,
+          summary:
+            typeof summary === 'function' ? (summary as (txid: string) => TSummary)(txid) : summary,
+        }
       } catch (error) {
         setTxProgressError(error)
         throw error
       }
     },
-    [setTxProgressError, signPset, signerType, applyBroadcastTransaction, startTxProgress],
+    [
+      setTxProgressError,
+      completeTransaction,
+      signerType,
+      applyBroadcastTransaction,
+      startTxProgress,
+    ],
   )
 }

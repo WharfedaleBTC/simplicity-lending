@@ -1,5 +1,5 @@
-use simplex::simplicityhl::elements::OutPoint;
-use simplex::{provider::ProviderError, signer::SignerError};
+use lending_sdk::elements::OutPoint;
+use lending_sdk::{provider::ProviderError, signer::SignerError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum IssuanceCommandError {
@@ -18,10 +18,10 @@ pub enum IssuanceCommandError {
         actual_asset_id: String,
     },
 
-    #[error("Simplex Signer error: {0}")]
+    #[error("Signer error: {0}")]
     Signer(#[from] SignerError),
 
-    #[error("Simplex Provider error: {0}")]
+    #[error("Provider error: {0}")]
     Provider(#[from] ProviderError),
 
     #[error("Invalid entropy hex `{entropy}`: {source}")]

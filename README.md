@@ -1,61 +1,87 @@
-# Simplicity lending protocol
+# Simplicity lending on Wharfedale
 
-A pure SimplicityHL implementation of a peer-to-peer lending protocol.
+A peer-to-peer lending protocol written in SimplicityHL, ported from
+[BlockstreamResearch/simplicity-lending](https://github.com/BlockstreamResearch/simplicity-lending)
+(Liquid) to [Wharfedale](https://github.com/WharfedaleBTC/wharfedale).
 
-## High-level mechanics
+## How it works
 
-Borrowers create "borrowing offers" with specified _collateral amount_, _lending duration_, and _principal asset amount_ (interest) they are willing to pay for the credit settlement. They also specify the _amount of principal_ they are willing to receive for the pledged collateral.
+Borrowers create offers with a collateral amount (WBTC, the chain's fee asset), the principal
+they want (USDT, an asset issued on the chain), an interest rate and an expiry. Before an offer is
+accepted the borrower can cancel it. A lender accepts it by supplying the principal, which
+locks the collateral in the Lending covenant. Before the expiry the borrower repays principal
+plus interest and takes the collateral back; after it, if the loan is unpaid, the lender
+liquidates and takes the collateral.
 
-The Borrower can cancel the initial offer before it is accepted.
+Loans expire at a **unix time** (`jet::check_lock_time`), not a block height: Wharfedale makes
+blocks only when there is work, so heights don't measure time. Wharfedale checks time locks
+against the block's own timestamp, so a liquidation is admitted as soon as the expiry has
+passed and makes the next block itself.
 
-If a Lender is satisfied with such conditions, they provide principal to the borrower, creating a lending contract.
+## What changed from Liquid
 
-At any point in time before the lending contract expiry, the Borrower can repay the principal amount with interest and take their collateral back.
+| Upstream (Liquid) | Here (Wharfedale) |
+|---|---|
+| `smplx-sdk` 0.0.5 (Liquid networks, P2WPKH wallets, SimplicityHL 0.5) | `crates/sdk` (`lending-sdk`): Taproot key-path wallets, Wharfedale's fee asset and genesis hash, SimplicityHL 0.9 as the node |
+| Contract tests on an elementsd regtest | The same tests on an in-process chain validated by Wharfedale's own consensus code (`wharfedale-ledger`) |
+| Web wallet: LWK (Jade, SideSwap, Humid, Waterfalls) | A recovery-phrase wallet with the Wharfedale web app's keys; the browser runs `crates/wasm` (WebAssembly) to compile programs, unblind, fund, blind, sign and satisfy covenants |
+| `check_lock_height`, terms in ~1-minute blocks | `check_lock_time`, terms in seconds |
+| Liquid asset registry (ELIP-0100) | Not used: the lending NFTs are issued without a contract |
+| Prices from Blockstream's price API | WBTC at the live BTC/USD price (Coinbase, fetched by the browser); the principal's price from the deployment's config |
 
-In case the Borrower fails to pay interest before the lending contract expiry, the Lender can liquidate the position and claim collateral for themselves.
+## Repository
 
-## Repository structure
+- `crates/contracts`: the `.simf` programs and their transaction builders.
+- `crates/sdk`: programs with storage leaves, transaction assembly, the signer, a node provider
+  and the in-process test chain.
+- `crates/indexer`: indexes offers from a Wharfedale node and serves the API the web app uses.
+- `crates/session`: the loan flows (create, accept, repay, cancel, liquidate) over the indexer.
+- `crates/cli`: a helper CLI (`NODE_URL`, `MNEMONIC`).
+- `crates/wasm`: the transaction layer for the browser.
+- `crates/e2e`: the loan lifecycle against a running network (`make e2e`).
+- `web/`: the React app.
+- `docker/`: images and the local stack.
 
-- **crates/** — Rust workspace with three components:
-  - **CLI** — command-line tools for the lending protocol (building and signing transactions).
-  - **Contracts** — Simplicity contracts and covenant logic for the lending protocol.
-  - **Indexer** — backend service that indexes offers and exposes an API for the web app.
-- **web/** — demo frontend (React/TypeScript) for borrowers and lenders.
+The workspace builds against sibling checkouts, laid out as the node expects:
 
-## How to use
+```text
+wharfedale/          the node (its ledger crate checks the contract tests)
+wharfedale-sdk-rs/   the Rust SDK
+malachite/           the node's consensus fork
+simplicity-lending/  this repository
+```
 
-### Through Docker
+## Run it locally
 
-From repo root:
+```bash
+cd ../wharfedale && make run     # the Wharfedale network, its web app and faucet (:8080)
+cd ../simplicity-lending && make run   # indexer, API, web app (:8090)
+```
 
-1. Create the environment file (in the root):
-   ```bash
-   cp .env.example .env
-   ```
-2. Start the services:
-   ```bash
-   docker compose up --build
-   ```
+Collateral is WBTC, the chain's fee asset. The principal is an asset you issue yourself: in the
+Wharfedale web app (http://localhost:8080/assets) create USDT, then put its asset id in
+`docker/lending.env`:
 
+```bash
+PRINCIPAL_ASSET=<the USDT asset id>
+```
 
-### Locally (without Docker)
+Its ticker and decimals come from the chain. `PROTOCOL_FEE_KEEPER_ASSET` (optional) is the
+asset whose holder collects protocol fees; it defaults to the principal asset, as upstream. The
+settings apply on the next `make stop` and `make run`.
 
-To run the **demo frontend** (web app for borrowers and lenders), you need the **Indexer** API running. The web app talks to it to list and manage offers.
+Open http://localhost:8090 and connect with a recovery phrase (the Wharfedale web app's, or a
+new one). Get WBTC from the faucet at http://localhost:8080/faucet and send USDT to lenders from
+the wallet that issued it.
 
-**Quick start (from repo root):**
+`make stop` keeps the indexer's database; `make clear` deletes it.
 
-1. **Indexer** — set up PostgreSQL, configure `crates/indexer` (see [crates/indexer/README.md](crates/indexer/README.md)), then:
-   ```bash
-   cd crates/indexer && cargo run -p lending-indexer
-   ```
-   By default this starts the API (port 8000). For full indexing you also need the indexer worker (`RUN_MODE=indexer`).
+## Tests
 
-2. **Web** — install deps and start the dev server (see [web/README.md](web/README.md)):
-   ```bash
-   git submodule update --init lwk && git config submodule.recurse true
-   web/scripts/build-lwk.sh
-   cd web && pnpm install && pnpm dev
-   ```
-   Open the URL shown (e.g. http://localhost:5173). Set `VITE_API_URL` in `web/.env` if the API is not at `http://localhost:8000`.
+```bash
+make test   # unit, contract (in-process chain), indexer and session tests (Postgres: DATABASE_URL)
+make e2e    # repay and liquidation against the running network and indexer
+```
 
-**CLI** and **Contracts** are used for building/signing lending transactions and covenant logic; see the respective crates under `crates/` for development and usage.
+For `pnpm dev` in `web/`: `make wasm` builds the WebAssembly module (in Docker) and
+`make dev-config` copies the running deployment's `config.json` into `web/public`.

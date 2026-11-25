@@ -1,17 +1,16 @@
 use lending_contracts::{
-    programs::{issuance_factory::IssuanceFactory, program::SimplexProgram},
+    programs::{issuance_factory::IssuanceFactory, program::SimplicityProgram},
     utils::get_random_seed,
 };
 
-use simplex::transaction::{
-    FinalTransaction, PartialInput, PartialOutput, RequiredSignature, UTXO,
-    partial_input::IssuanceInput,
+use lending_sdk::transaction::{
+    FinalTransaction, IssuanceInput, PartialInput, PartialOutput, RequiredSignature, UTXO,
 };
 
 use super::setup::setup_issuance_factory;
 
 fn setup_default_assets_issuance(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     issuing_utxos_count: u8,
     reissuance_flags: u64,
 ) -> anyhow::Result<(FinalTransaction, IssuanceFactory, UTXO)> {
@@ -28,10 +27,7 @@ fn setup_default_assets_issuance(
 
     let mut ft = FinalTransaction::new();
 
-    ft.add_input(
-        PartialInput::new(auth_nft_utxo),
-        RequiredSignature::NativeEcdsa,
-    );
+    ft.add_input(PartialInput::new(auth_nft_utxo), RequiredSignature::KeyPath);
     ft.add_output(PartialOutput::new(
         signer.get_address().script_pubkey(),
         1,
@@ -41,8 +37,9 @@ fn setup_default_assets_issuance(
     Ok((ft, issuance_factory, issuance_factory_utxo))
 }
 
-#[simplex::test]
-fn fails_to_issue_wrong_assets_number(context: simplex::TestContext) -> anyhow::Result<()> {
+#[test]
+fn fails_to_issue_wrong_assets_number() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let signer = context.get_default_signer();
 
     let (mut ft, issuance_factory, issuance_factory_utxo) =
@@ -67,7 +64,7 @@ fn fails_to_issue_wrong_assets_number(context: simplex::TestContext) -> anyhow::
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -91,10 +88,9 @@ fn fails_to_issue_wrong_assets_number(context: simplex::TestContext) -> anyhow::
     Ok(())
 }
 
-#[simplex::test]
-fn fails_to_issue_assets_with_reissuance_tokens(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn fails_to_issue_assets_with_reissuance_tokens() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let signer = context.get_default_signer();
 
     let (mut ft, issuance_factory, issuance_factory_utxo) =
@@ -118,7 +114,7 @@ fn fails_to_issue_assets_with_reissuance_tokens(
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -150,10 +146,9 @@ fn fails_to_issue_assets_with_reissuance_tokens(
     Ok(())
 }
 
-#[simplex::test]
-fn fails_to_issue_assets_without_reissuance_tokens(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn fails_to_issue_assets_without_reissuance_tokens() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let signer = context.get_default_signer();
 
     let (mut ft, issuance_factory, issuance_factory_utxo) =
@@ -176,7 +171,7 @@ fn fails_to_issue_assets_without_reissuance_tokens(
     let second_issuance_details = ft.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(second_asset_amount, 0, issuance_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(

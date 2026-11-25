@@ -1,25 +1,24 @@
 #![allow(dead_code)]
-use simplex::simplicityhl::elements::Txid;
-use simplex::transaction::FinalTransaction;
+use lending_sdk::elements::Txid;
+use lending_sdk::transaction::FinalTransaction;
 
 pub fn finalize_strict_and_broadcast(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     ft: &FinalTransaction,
 ) -> anyhow::Result<Txid> {
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
     let (tx, _) = signer.finalize_strict(ft, 1)?;
-    let receipt = provider.broadcast_transaction(&tx)?;
-    Ok(receipt.txid())
+    Ok(provider.broadcast_transaction(&tx)?)
 }
 
-pub fn wait_for_tx(context: &simplex::TestContext, txid: &Txid) -> anyhow::Result<()> {
+pub fn wait_for_tx(context: &lending_sdk::TestContext, txid: &Txid) -> anyhow::Result<()> {
     Ok(context.get_default_provider().wait(txid)?)
 }
 
 // pub fn mine_blocks_with_self_send(
-//     context: &simplex::TestContext,
+//     context: &lending_sdk::TestContext,
 //     blocks: u32,
 //     amount: u64,
 // ) -> anyhow::Result<Vec<Txid>> {

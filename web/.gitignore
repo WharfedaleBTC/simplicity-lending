@@ -25,3 +25,6 @@ dist-ssr
 
 # Eslint cache
 .eslintcache
+
+# WebAssembly package, built by `make wasm` (CI and the Docker image build it too)
+src/wasm/pkg/

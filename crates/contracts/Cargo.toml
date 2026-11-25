@@ -6,7 +6,7 @@ description = "Simplicity Lending contract"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/BlockstreamResearch/simplicity-lending"
 readme = "README.md"
-keywords = ["simplicity", "lending", "liquid", "bitcoin", "elements", "contracts"]
+keywords = ["simplicity", "lending", "wharfedale", "bitcoin", "elements", "contracts"]
 categories = ["cryptography::cryptocurrencies"]
 
 [features]
@@ -20,11 +20,13 @@ pre_lock = []
 workspace = true
 
 [dependencies]
-ring = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
+serde_json = "1"
+rand = "0.8.5"
 
-smplx-std = { workspace = true }
+lending-sdk = { path = "../sdk", default-features = false }
 
 [dev-dependencies]
 anyhow = "1"
+lending-sdk = { path = "../sdk", features = ["testing"] }

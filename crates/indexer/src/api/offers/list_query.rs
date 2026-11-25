@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
-use simplex::simplicityhl::elements::hex::ToHex;
+use lending_sdk::hex::ToHex;
 
 use crate::api::OfferListQuery;
 use crate::api::query::{

@@ -2,7 +2,7 @@ import { Skeleton } from '@heroui/react'
 import { keepPreviousData } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useChainTime } from '@/api/esplora/hooks'
 import { useOffers } from '@/api/indexer/hooks'
 import type { OfferFilters } from '@/api/indexer/methods'
 import ArrowsRotateIcon from '@/components/icons/ArrowsRotateIcon'
@@ -26,7 +26,7 @@ export default function OffersPanel({ title, pageSize, filters }: OffersPanelPro
     error,
     refetch,
   } = useOffers(params, { placeholderData: keepPreviousData })
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
 
   const [manualSpin, setManualSpin] = useState(false)
   const isSpinning = isFetching || manualSpin
@@ -72,7 +72,7 @@ export default function OffersPanel({ title, pageSize, filters }: OffersPanelPro
         >
           <OffersTable
             offers={offers}
-            currentBlockHeight={currentBlockHeight}
+            currentTime={currentTime}
             page={page}
             pageCount={pageCount}
             emptyMessage='No offers found'

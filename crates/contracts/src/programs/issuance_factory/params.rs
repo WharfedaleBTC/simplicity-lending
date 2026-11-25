@@ -1,4 +1,4 @@
-use simplex::provider::SimplicityNetwork;
+use lending_sdk::Network;
 
 use crate::artifacts::issuance_factory::derived_issuance_factory::IssuanceFactoryArguments;
 
@@ -6,7 +6,7 @@ use crate::artifacts::issuance_factory::derived_issuance_factory::IssuanceFactor
 pub struct IssuanceFactoryParameters {
     pub issuing_utxos_count: u8,
     pub reissuance_flags: u64,
-    pub network: SimplicityNetwork,
+    pub network: Network,
 }
 
 impl IssuanceFactoryParameters {

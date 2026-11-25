@@ -21,9 +21,11 @@ import { PendingTransactionsContext } from './PendingTransactionsContext'
 import { deletePendingTx, loadPendingTxsForWallet, putPendingTx } from './storage'
 import type { AddPendingTxInput, PendingTxRecord } from './types'
 
-const CONFIRMATION_POLL_MS = 15_000
+// Wharfedale blocks are final once committed (Malachite BFT): one confirmation is final. A
+// second one may never come, as the chain makes no blocks while idle.
+const CONFIRMATION_POLL_MS = 3_000
 const CONFIRMED_THRESHOLD = 1
-const FINALIZED_THRESHOLD = 2
+const FINALIZED_THRESHOLD = 1
 /** Defensive cap on how long a pending record can sit untracked before we give up on it. */
 const MAX_PENDING_AGE_MS = 24 * 60 * 60 * 1000
 const FINALIZED_CLEANUP_GRACE_MS = 10 * 60 * 1000

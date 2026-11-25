@@ -37,7 +37,7 @@ pub struct OfferDetailsResponseSchema {
     /// Interest rate in basis points.
     #[schema(example = 120)]
     pub interest_rate: u32,
-    pub loan_expiration_height: u32,
+    pub loan_expiration_time: u32,
     pub updated_at_height: u64,
     pub created_at_height: u64,
     pub created_at_txid: String,

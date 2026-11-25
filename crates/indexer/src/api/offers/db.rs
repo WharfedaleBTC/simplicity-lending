@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use simplex::simplicityhl::elements::hex::ToHex;
+use lending_sdk::hex::ToHex;
 
 use crate::api::OfferListQuery;
 use crate::api::db::{AssetSumRow, asset_amounts_from_rows};

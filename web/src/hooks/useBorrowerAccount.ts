@@ -1,15 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  Address,
-  type AssetId,
-  assetIdFromIssuance,
-  type ContractHash,
-  type OutPoint,
-  type Pset,
-  Script,
-  type TxOutSecrets,
-  XOnlyPublicKey,
-} from 'lwk_wasm'
 import { useCallback, useMemo } from 'react'
 
 import { fetchFeeRateSatPerKvbAbovePending } from '@/api/esplora/fee'
@@ -17,25 +6,36 @@ import { useFactories } from '@/api/indexer/hooks'
 import { factoryQueryKeys } from '@/api/indexer/queryKeys'
 import type { FactoryDetails } from '@/api/indexer/schemas'
 import { NETWORK_CONFIG } from '@/constants/network-config'
-import { AssetKind, buildAssetContract, contractHashOrEmpty } from '@/lwk/assetContract'
-import { buildPset, type PsetBlinding } from '@/lwk/psetBuilder'
-import { fetchTransaction, requireTxOut, type UpdatedPset } from '@/lwk/transaction'
-import {
-  isConfirmedWalletUtxo,
-  isPolicyAssetUtxo,
-  utxoToOutpointString,
-  WALLET_INPUT_RBF_SEQUENCE,
-} from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
+import { useChain } from '@/providers/chain/useChain'
 import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
 import { useWallet } from '@/providers/wallet/useWallet'
 import { loadIssuanceFactoryProgram } from '@/simplicity/issuance-factory/program'
-import { UNSPENDABLE_TAPROOT_PUBKEY } from '@/simplicity/taproot'
+import { buildCovenantSpendInfo } from '@/simplicity/taproot'
 import { formatFeeReserve } from '@/utils/format'
 import { bytesToHex } from '@/utils/hex'
 import { getProcessingTxids } from '@/utils/pendingTransactions'
 import { sha256 } from '@/utils/sha256'
 import { toUint8, toUint64 } from '@/utils/uint'
+import {
+  assetIdFromIssuance,
+  AssetKind,
+  buildAssetContract,
+  type ContractHash,
+  contractHashOrEmpty,
+} from '@/wharfedale/assetContract'
+import {
+  fetchTransaction,
+  type PreparedTransaction,
+  requireTxOut,
+  type TxSpec,
+} from '@/wharfedale/tx'
+import { Address, AssetId, OutPoint, Script } from '@/wharfedale/types'
+import {
+  isConfirmedWalletUtxo,
+  isPolicyAssetUtxo,
+  utxoToOutpointString,
+  WALLET_INPUT_RBF_SEQUENCE,
+} from '@/wharfedale/utxo'
 
 export interface FactoryState {
   factoryAssetId: string
@@ -70,15 +70,8 @@ export interface BorrowerAccountCreationSummary {
 }
 
 export function useBorrowerAccount() {
-  const { lwkNetwork } = useLwk()
-  const {
-    getReceiveAddress,
-    getChangeAddress,
-    getBlindedWalletUtxos,
-    getWollet,
-    scriptPubkey,
-    signerType,
-  } = useWallet()
+  const { chainNetwork: lwkNetwork } = useChain()
+  const { getReceiveAddress, getBlindedWalletUtxos, scriptPubkey } = useWallet()
   const { pendingTxs } = usePendingTransactions()
   const queryClient = useQueryClient()
   const factoriesQuery = useFactories(scriptPubkey || '')
@@ -95,11 +88,12 @@ export function useBorrowerAccount() {
     queryClient.invalidateQueries({ queryKey: factoryQueryKeys.byScript(scriptPubkey) })
   }, [scriptPubkey, queryClient])
 
-  const createBorrowerAccount = async (): Promise<UpdatedPset<BorrowerAccountCreationSummary>> => {
+  const createBorrowerAccount = async (): Promise<
+    PreparedTransaction<BorrowerAccountCreationSummary>
+  > => {
     const receiveAddressString = await getReceiveAddress()
     if (!receiveAddressString) throw new Error('Missing receive address')
 
-    const wollet = await getWollet()
     const policyAsset = lwkNetwork.policyAsset()
     const blindedWalletUtxos = await getBlindedWalletUtxos()
 
@@ -120,31 +114,21 @@ export function useBorrowerAccount() {
       fetchTransaction(feeUtxo.outpoint()),
     ])
     const feeTxOut = requireTxOut(feeTx, feeUtxo.outpoint().vout(), 'Funding')
-    const receiveAddress = Address.parse(receiveAddressString, lwkNetwork).toUnconfidential()
+    const receiveAddress = Address.parse(receiveAddressString).toUnconfidential()
     const issuanceFactoryProgram = loadIssuanceFactoryProgram({
       issuingUtxosCount: toUint8(ISSUING_UTXOS_COUNT, 'issuingUtxosCount'),
       reissuanceFlags: toUint64(REISSUANCE_FLAGS, 'reissuanceFlags'),
     })
-    const factoryAddress = issuanceFactoryProgram.createP2trAddress(
-      XOnlyPublicKey.fromString(UNSPENDABLE_TAPROOT_PUBKEY),
-      lwkNetwork,
-    )
+    const factoryAddress = buildCovenantSpendInfo(issuanceFactoryProgram)
     const { contractHash, issuedAssetId, metadata } = await prepareIssuance(feeUtxo.outpoint())
-    const blinding: PsetBlinding = signerType === 'humid' ? 'wallet' : 'local'
 
-    const changeAddress = await getChangeAddress()
-    const { pset } = buildPset({
-      network: lwkNetwork,
+    const spec: TxSpec = {
       inputs: [
         {
           outpoint: feeUtxo.outpoint(),
           prevout: feeTxOut,
-          asset: feeUtxo.unblinded().asset(),
-          amount: feeUtxo.unblinded().value(),
-          secrets: blinding === 'local' ? (feeUtxo.unblinded() as TxOutSecrets) : undefined,
           walletCoin: true,
           sequence: WALLET_INPUT_RBF_SEQUENCE,
-          maxWeightToSatisfy: wollet.maxWeightToSatisfy(),
           issuance: {
             assetAmount: ISSUANCE_AMOUNT,
             tokenAmount: REISSUANCE_TOKEN_AMOUNT,
@@ -159,36 +143,26 @@ export function useBorrowerAccount() {
           asset: issuedAssetId,
         },
         {
-          script: factoryAddress.scriptPubkey(),
+          script: factoryAddress.scriptPubkey,
           amount: ISSUANCE_FACTORY_AMOUNT,
           asset: issuedAssetId,
         },
-        { script: Script.newOpReturn(metadata), amount: 0n, asset: policyAsset },
+        { script: Script.opReturn(metadata), amount: 0n, asset: policyAsset },
       ],
-      changeAddress,
-      feeRateSatPerKvb: feeRate,
-      blinding,
-    })
-    pset.addDetails(wollet)
+    }
 
     return {
-      pset,
-      finalize: (signedPset: Pset) => {
-        const finalizedTx = wollet.finalize(signedPset).extractTx()
-        const txid = finalizedTx.txid().toString()
-
-        return {
-          finalizedTx,
-          summary: {
-            fundingOutpoint,
-            factoryAddress: factoryAddress.toString(),
-            factoryAuthOutpoint: `${txid}:0`,
-            issuanceFactoryOutpoint: `${txid}:1`,
-            issuedAssetId: issuedAssetId.toString(),
-            metadataOpReturnHex: bytesToHex(Script.newOpReturn(metadata).bytes()),
-          },
-        }
-      },
+      spec,
+      feeRateSatPerKvb: feeRate,
+      // TODO: Remove debug summary before release
+      summary: (txid: string) => ({
+        fundingOutpoint,
+        factoryAddress: factoryAddress.address,
+        factoryAuthOutpoint: `${txid}:0`,
+        issuanceFactoryOutpoint: `${txid}:1`,
+        issuedAssetId: issuedAssetId.toString(),
+        metadataOpReturnHex: bytesToHex(Script.opReturn(metadata).bytes()),
+      }),
     }
   }
 

@@ -4,7 +4,7 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-pnpmfileChecksum: sha256-HIpMgBuvXUkS5yDwBTZc1J7XhpGy+Ctny4BUrYjQMWA=
+pnpmfileChecksum: sha256-9Z4K4NYhpSUwiNTvpUn2Ekqmy1vIYp2ZyUzaBUTDkhg=
 
 importers:
 
@@ -31,9 +31,6 @@ importers:
       idb:
         specifier: ^8.0.3
         version: 8.0.3
-      lwk_wasm:
-        specifier: file:../lwk/lwk_wasm/pkg
-        version: file:../lwk/lwk_wasm/pkg
       react:
         specifier: ^19.2.6
         version: 19.2.7
@@ -2356,9 +2353,6 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
-
-  lwk_wasm@file:../lwk/lwk_wasm/pkg:
-    resolution: {directory: ../lwk/lwk_wasm/pkg, type: directory}
 
   macos-version@6.0.0:
     resolution: {integrity: sha512-O2S8voA+pMfCHhBn/TIYDXzJ1qNHpPDU32oFxglKnVdJABiYYITt45oLkV9yhwA3E2FDwn3tQqUFrTsr1p3sBQ==}
@@ -5278,8 +5272,6 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
-
-  lwk_wasm@file:../lwk/lwk_wasm/pkg: {}
 
   macos-version@6.0.0:
     dependencies:

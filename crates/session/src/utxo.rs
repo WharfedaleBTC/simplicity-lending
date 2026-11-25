@@ -1,5 +1,5 @@
-use simplex::simplicityhl::elements::AssetId;
-use simplex::transaction::UTXO;
+use lending_sdk::elements::AssetId;
+use lending_sdk::transaction::UTXO;
 
 #[derive(Debug, Clone)]
 pub struct SelectedUtxos {
@@ -83,10 +83,11 @@ pub fn select_utxos_for_amount(
 
 #[cfg(test)]
 mod tests {
-    use simplex::simplicityhl::elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
-    use simplex::simplicityhl::elements::hashes::Hash;
-    use simplex::simplicityhl::elements::{AssetId, OutPoint, TxOut, TxOutSecrets, Txid};
-    use simplex::transaction::UTXO;
+    use lending_sdk::elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
+    use lending_sdk::hex::FromSlice;
+
+    use lending_sdk::elements::{AssetId, OutPoint, TxOut, TxOutSecrets, Txid};
+    use lending_sdk::transaction::UTXO;
 
     use super::{SelectedUtxos, select_utxos_for_amount};
 

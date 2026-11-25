@@ -1,6 +1,6 @@
 use lending_contracts::programs::lending::{LendingOffer, LendingOfferParameters};
-use simplex::simplicityhl::elements::Txid;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Txid;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use lending_contracts::programs::lending::OfferParameters;
 
@@ -11,7 +11,7 @@ use super::setup::{
 };
 
 fn default_offer_cancellation_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
 ) -> anyhow::Result<(Txid, LendingOffer, LendingOfferParameters)> {
     let provider = context.get_default_provider();
 
@@ -20,12 +20,13 @@ fn default_offer_cancellation_setup(
     let issuance_factory = setup_issuance_factory(context)?;
 
     let principal_asset_amount = 20000;
-    let current_height = provider.fetch_tip_height()?;
+    // Loans end at a unix time (an hour from the tip block).
+    let current_time = u32::try_from(provider.fetch_tip_timestamp()?)?;
 
     let offer_parameters = OfferParameters {
         collateral_amount: 3000,
         principal_amount: 10000,
-        loan_expiration_time: current_height + 60,
+        loan_expiration_time: current_time + 3600,
         principal_interest_rate: 1000,
     };
 
@@ -37,10 +38,9 @@ fn default_offer_cancellation_setup(
     )
 }
 
-#[simplex::test]
-fn offer_cancellation_fails_when_offer_is_not_pending(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn offer_cancellation_fails_when_offer_is_not_pending() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
 
@@ -72,7 +72,7 @@ fn offer_cancellation_fails_when_offer_is_not_pending(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -91,10 +91,9 @@ fn offer_cancellation_fails_when_offer_is_not_pending(
     Ok(())
 }
 
-#[simplex::test]
-fn offer_cancellation_fails_when_pending_offer_utxo_is_not_0_input_index(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn offer_cancellation_fails_when_pending_offer_utxo_is_not_0_input_index() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let borrower = context.get_default_signer();
 
     let (pending_offer_creation_txid, pending_offer, pending_offer_parameters) =
@@ -110,7 +109,7 @@ fn offer_cancellation_fails_when_pending_offer_utxo_is_not_0_input_index(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     pending_offer.attach_cancellation(&mut ft, pending_offer_utxo, lender_nft_utxo);
@@ -131,10 +130,9 @@ fn offer_cancellation_fails_when_pending_offer_utxo_is_not_0_input_index(
     Ok(())
 }
 
-#[simplex::test]
-fn offer_cancellation_fails_when_collateral_utxo_is_on_0_output_index(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn offer_cancellation_fails_when_collateral_utxo_is_on_0_output_index() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let borrower = context.get_default_signer();
 
     let (pending_offer_creation_txid, pending_offer, pending_offer_parameters) =
@@ -158,7 +156,7 @@ fn offer_cancellation_fails_when_collateral_utxo_is_on_0_output_index(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     let result = borrower.finalize(&ft);

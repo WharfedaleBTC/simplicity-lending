@@ -1,9 +1,9 @@
-import { Mnemonic } from 'lwk_wasm'
 import { useState } from 'react'
 
 import ArrowsRotateIcon from '@/components/icons/ArrowsRotateIcon'
 import { UiButton } from '@/components/ui/UiButton'
 import { UiTextField } from '@/components/ui/UiTextField'
+import { requireWasm } from '@/wharfedale/wasm'
 
 const WORD_COUNT = 12
 
@@ -35,10 +35,7 @@ export function MnemonicInput({ onChange }: MnemonicInputProps) {
   }
 
   const handleGenerate = () => {
-    const generated = Mnemonic.fromRandom(WORD_COUNT)
-    const generatedWords = generated.toString().split(' ')
-    generated.free()
-    emit(generatedWords)
+    emit(requireWasm().generateMnemonic(WORD_COUNT).split(' '))
   }
 
   return (
@@ -61,7 +58,7 @@ export function MnemonicInput({ onChange }: MnemonicInputProps) {
       </div>
       <UiButton variant='secondary' fullWidth className='group' onPress={handleGenerate}>
         <ArrowsRotateIcon className='size-4 transition-transform duration-300 group-hover:rotate-180' />
-        Generate random
+        Generate new wallet
       </UiButton>
     </div>
   )

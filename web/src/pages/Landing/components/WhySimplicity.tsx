@@ -37,8 +37,8 @@ export function WhySimplicity() {
         <p className='text-accent text-xs font-bold'>WHY SIMPLICITY</p>
         <p className='text-h2'>Trust the Math Instead.</p>
         <p className='text-foreground text-sm'>
-          Your bitcoin is locked in a Simplicity smart contract on the Liquid Network. The contract
-          governs collateral, repayment, and liquidation. No human can override it.
+          Your bitcoin is locked in a Simplicity smart contract on Wharfedale. The contract governs
+          collateral, repayment, and liquidation. No human can override it.
         </p>
       </Reveal>
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>

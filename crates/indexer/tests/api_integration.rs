@@ -5,10 +5,10 @@ use std::time::Duration;
 use lending_indexer::api::server::run_server;
 use lending_indexer::events::{INDEXER_EVENTS_CHANNEL, IndexerEvent};
 use lending_indexer::models::{OfferStatus, ParticipantType, UtxoType};
+use lending_sdk::elements::OutPoint;
 use reqwest::StatusCode;
 use serde_json::Value;
 use serial_test::serial;
-use simplex::simplicityhl::elements::OutPoint;
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tokio::time::timeout;
@@ -963,7 +963,7 @@ struct ExpectedOfferDetailsDto {
     collateral_amount: String,
     principal_amount: String,
     interest_rate: u32,
-    loan_expiration_height: u32,
+    loan_expiration_time: u32,
     updated_at_height: u64,
     created_at_height: u64,
     created_at_txid: String,
@@ -1040,7 +1040,7 @@ async fn offer_details_full_dto_shape() -> anyhow::Result<()> {
     assert_eq!(dto.collateral_amount, "1000");
     assert_eq!(dto.principal_amount, "500");
     assert_eq!(dto.interest_rate, 120);
-    assert_eq!(dto.loan_expiration_height, 1_234_567);
+    assert_eq!(dto.loan_expiration_time, 1_234_567);
     assert_eq!(dto.updated_at_height, PENDING_OFFER_HEIGHT as u64);
     assert_eq!(dto.created_at_height, PENDING_OFFER_HEIGHT as u64);
     // 32-byte seeded values serialize as 64-char hex strings.

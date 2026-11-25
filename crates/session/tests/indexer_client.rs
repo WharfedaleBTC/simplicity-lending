@@ -28,7 +28,7 @@ fn offer_list_body() -> String {
                     "collateral_amount": "1000",
                     "principal_amount": "500",
                     "interest_rate": 250,
-                    "loan_expiration_height": 123,
+                    "loan_expiration_time": 123,
                     "updated_at_height": 456,
                     "created_at_height": 456,
                     "created_at_txid": "ccbbaa",
@@ -81,7 +81,7 @@ async fn list_offers_forwards_filter_query_params() {
         .and(query_param("status", "pending,active"))
         .and(query_param("limit", "10"))
         .and(query_param("offset", "5"))
-        .and(query_param("sort_by", "loan_expiration_height"))
+        .and(query_param("sort_by", "loan_expiration_time"))
         .and(query_param("sort_dir", "asc"))
         .respond_with(ResponseTemplate::new(200).set_body_string(offer_list_body()))
         .mount(&server)
@@ -91,7 +91,7 @@ async fn list_offers_forwards_filter_query_params() {
         .with_status(vec![OfferStatus::Pending, OfferStatus::Active])
         .with_limit(10)
         .with_offset(5)
-        .with_sort(OfferSortBy::LoanExpirationHeight, SortDir::Asc);
+        .with_sort(OfferSortBy::LoanExpirationTime, SortDir::Asc);
 
     let client = client_for(&server).await;
     let response = client.list_offers(&params).await.expect("filtered offers");
@@ -128,7 +128,7 @@ async fn get_offer_parses_flattened_details_with_duplicate_participants_key() {
             "collateral_amount": "99",
             "principal_amount": "77",
             "interest_rate": 12,
-            "loan_expiration_height": 321,
+            "loan_expiration_time": 321,
             "updated_at_height": 55,
             "created_at_height": 55,
             "created_at_txid": "adde",

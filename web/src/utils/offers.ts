@@ -4,9 +4,10 @@ import { BPS_DIVISOR, PROTOCOL_FEE_BPS } from '@/constants/offers'
 import { formatTermLeft } from './format'
 import { normalizeHex } from './hex'
 
-const AVERAGE_BLOCK_TIME_SECONDS = 60
-const BLOCKS_PER_DAY = (24 * 60 * 60) / AVERAGE_BLOCK_TIME_SECONDS
-const BLOCKS_PER_YEAR = 365 * BLOCKS_PER_DAY
+// Wharfedale loans end at a unix time (the covenant's time lock), not a block height: blocks
+// come only when there is work, so heights don't measure time.
+const SECONDS_PER_DAY = 24 * 60 * 60
+const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY
 
 export function calcInterest(principal: bigint, bps: number): bigint {
   return (principal * BigInt(Math.round(bps))) / BPS_DIVISOR
@@ -20,8 +21,8 @@ export function bpsToPercent(bps: number): string {
   return `${(bps / 100).toFixed(2)}%`
 }
 
-export function daysToBlocks(days: number): number {
-  return days * BLOCKS_PER_DAY
+export function daysToSeconds(days: number): number {
+  return Math.round(days * SECONDS_PER_DAY)
 }
 
 export function feeToBps(feeBaseUnits: bigint, principalBaseUnits: bigint): number {
@@ -29,9 +30,9 @@ export function feeToBps(feeBaseUnits: bigint, principalBaseUnits: bigint): numb
   return Number((feeBaseUnits * BPS_DIVISOR) / principalBaseUnits)
 }
 
-export function computeApr(bps: number, loanDurationBlocks: number): number {
-  if (loanDurationBlocks <= 0) return 0
-  return (bps / Number(BPS_DIVISOR)) * (BLOCKS_PER_YEAR / loanDurationBlocks) * 100
+export function computeApr(bps: number, loanDurationSeconds: number): number {
+  if (loanDurationSeconds <= 0) return 0
+  return (bps / Number(BPS_DIVISOR)) * (SECONDS_PER_YEAR / loanDurationSeconds) * 100
 }
 
 export function computeLtv({
@@ -53,15 +54,32 @@ export function computeLtv({
   return principalValue / collateralValue
 }
 
-export function getOfferTermLeft(offer: OfferShort, currentBlockHeight: number): number {
-  return offer.loan_expiration_height - currentBlockHeight
+/** Seconds until the loan expires (negative once expired). */
+export function getOfferTermLeft(offer: OfferShort, currentTime: number): number {
+  return offer.loan_expiration_time - currentTime
 }
 
-export function formatOfferTermLeft(offer: OfferShort, currentBlockHeight: number | null): string {
-  if (!currentBlockHeight) return '–'
-  return formatTermLeft(getOfferTermLeft(offer, currentBlockHeight))
+export function formatOfferTermLeft(offer: OfferShort, currentTime: number | null): string {
+  if (!currentTime) return '–'
+  return formatTermLeft(getOfferTermLeft(offer, currentTime))
 }
 
 export function findAssetAmount(amounts: AssetAmount[], assetId: string): bigint {
   return amounts.find(a => normalizeHex(a.asset) === normalizeHex(assetId))?.amount ?? 0n
+}
+
+/**
+ * The loan's term in seconds: from its creation block's timestamp to its expiry. Unknown
+ * (0) until that timestamp has loaded.
+ */
+export function getOfferDurationSeconds(offer: OfferShort, createdAt: number | undefined): number {
+  return createdAt === undefined ? 0 : offer.loan_expiration_time - createdAt
+}
+
+/** Unix seconds → local date and time. */
+export function formatUnixTime(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
 }

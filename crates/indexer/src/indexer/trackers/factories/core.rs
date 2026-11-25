@@ -1,4 +1,4 @@
-use simplex::simplicityhl::elements::{OutPoint, Transaction, Txid, hashes::Hash};
+use lending_sdk::elements::{OutPoint, Transaction, Txid};
 use sqlx::PgPool;
 use uuid::Uuid;
 

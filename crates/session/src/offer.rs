@@ -2,14 +2,14 @@ use std::str::FromStr;
 
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
 use lending_contracts::programs::lending::{LendingOffer, LendingOfferParameters};
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_contracts::programs::script_auth::ScriptAuth;
 use lending_contracts::utils::get_random_seed;
-use simplex::provider::{ProviderTrait, SimplicityNetwork};
-use simplex::simplicityhl::elements::AssetId;
-use simplex::simplicityhl::elements::hex::ToHex;
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::Network;
+use lending_sdk::elements::AssetId;
+use lending_sdk::hex::ToHex;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use crate::error::SessionError;
 use crate::indexer::{OfferListItemFull, OfferStatus, ParticipantType, UtxoType};
@@ -57,7 +57,7 @@ fn parse_interest_rate(value: u32) -> Result<u16, SessionError> {
 
 fn lending_offer_parameters_from_indexer(
     info: &OfferListItemFull,
-    network: SimplicityNetwork,
+    network: Network,
 ) -> Result<LendingOfferParameters, SessionError> {
     Ok(LendingOfferParameters {
         collateral_asset_id: parse_asset_id("collateral_asset", &info.base.collateral_asset)?,
@@ -71,7 +71,7 @@ fn lending_offer_parameters_from_indexer(
         offer_parameters: OfferParameters {
             collateral_amount: parse_amount("collateral_amount", &info.base.collateral_amount)?,
             principal_amount: parse_amount("principal_amount", &info.base.principal_amount)?,
-            loan_expiration_time: info.base.loan_expiration_height,
+            loan_expiration_time: info.base.loan_expiration_time,
             principal_interest_rate: parse_interest_rate(info.base.interest_rate)?,
         },
         network,
@@ -80,7 +80,7 @@ fn lending_offer_parameters_from_indexer(
 
 fn pending_offer_from_indexer(
     info: &OfferListItemFull,
-    network: SimplicityNetwork,
+    network: Network,
 ) -> Result<LendingOffer, SessionError> {
     let parameters = lending_offer_parameters_from_indexer(info, network)?;
 
@@ -89,7 +89,7 @@ fn pending_offer_from_indexer(
 
 fn active_offer_from_indexer(
     info: &OfferListItemFull,
-    network: SimplicityNetwork,
+    network: Network,
 ) -> Result<LendingOffer, SessionError> {
     let parameters = lending_offer_parameters_from_indexer(info, network)?;
     let current_debt = parameters.offer_parameters.get_total_amount_to_repay();
@@ -161,7 +161,7 @@ impl Session {
 
         transaction.add_input(
             PartialInput::new(factory_auth_utxo),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         transaction.add_output(PartialOutput::new(
             self.signer().get_address().script_pubkey(),
@@ -177,12 +177,12 @@ impl Session {
         let lender_nft_issuance = transaction.add_issuance_input(
             PartialInput::new(issuance_collateral_utxo),
             IssuanceInput::new_issuance(1, 0, nfts_entropy),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         for collateral_utxo in collateral_utxos {
             transaction.add_input(
                 PartialInput::new(collateral_utxo),
-                RequiredSignature::NativeEcdsa,
+                RequiredSignature::KeyPath,
             );
         }
 
@@ -252,7 +252,7 @@ impl Session {
             })
             .ok_or(SessionError::PendingOfferUtxoNotFound)?;
 
-        let lender_nft_auth = ScriptAuth::from_simplex_program(&pending_offer);
+        let lender_nft_auth = ScriptAuth::from_program(&pending_offer);
         let lender_nft_utxo = self
             .provider()
             .fetch_scripthash_utxos(&lender_nft_auth.get_script_pubkey())?
@@ -281,7 +281,7 @@ impl Session {
         pending_offer.attach_cancellation(&mut transaction, pending_offer_utxo, lender_nft_utxo);
         transaction.add_input(
             PartialInput::new(borrower_nft_utxo),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         transaction.add_output(
             PartialOutput::new(
@@ -329,7 +329,7 @@ impl Session {
             })
             .ok_or(SessionError::PendingOfferUtxoNotFound)?;
 
-        let lender_nft_auth = ScriptAuth::from_simplex_program(&offer);
+        let lender_nft_auth = ScriptAuth::from_program(&offer);
         let lender_nft_utxo = self
             .provider()
             .fetch_scripthash_utxos(&lender_nft_auth.get_script_pubkey())?
@@ -356,7 +356,7 @@ impl Session {
         for principal_utxo in principal_utxos.utxos() {
             transaction.add_input(
                 PartialInput::new(principal_utxo.clone()),
-                RequiredSignature::NativeEcdsa,
+                RequiredSignature::KeyPath,
             );
         }
         transaction.add_output(PartialOutput::new(
@@ -408,7 +408,10 @@ impl Session {
         let active_offer = active_offer_from_indexer(&offer_details.info, self.network())?;
         let parameters = *active_offer.get_parameters();
 
-        if self.provider().fetch_tip_height()? < parameters.offer_parameters.loan_expiration_time {
+        // The liquidation's block must be stamped after the expiry (a unix time).
+        if self.provider().fetch_next_block_time()?
+            <= u64::from(parameters.offer_parameters.loan_expiration_time)
+        {
             return Err(SessionError::LoanNotExpired);
         }
 
@@ -439,7 +442,7 @@ impl Session {
 
         transaction.add_input(
             PartialInput::new(lender_nft_utxo),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         transaction.add_output(PartialOutput::new(
             self.signer().get_address().script_pubkey(),
@@ -508,7 +511,7 @@ impl Session {
 
         transaction.add_input(
             PartialInput::new(borrower_nft_utxo),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
 
         active_offer.attach_full_repayment(&mut transaction, active_offer_utxo, None, None);
@@ -516,7 +519,7 @@ impl Session {
         for principal_utxo in principal_utxos.utxos() {
             transaction.add_input(
                 PartialInput::new(principal_utxo.clone()),
-                RequiredSignature::NativeEcdsa,
+                RequiredSignature::KeyPath,
             );
         }
 

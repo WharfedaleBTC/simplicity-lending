@@ -1,9 +1,10 @@
 use std::{collections::HashSet, str::FromStr};
 
 use clap::Subcommand;
-use simplex::{
-    simplicityhl::elements::{Address, AssetId, OutPoint, hex::ToHex},
-    simplicityhl::simplicity::bitcoin::PublicKey,
+use lending_sdk::{
+    elements::secp256k1_zkp::PublicKey,
+    elements::{Address, AssetId, OutPoint},
+    hex::ToHex,
     transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature},
 };
 
@@ -13,7 +14,7 @@ use crate::{cli::CliContext, commands::account::AccountCommandError};
 pub enum AccountCommand {
     /// Send policy asset to another account
     SendPolicyAsset {
-        /// Recipient address (Liquid testnet bech32m)
+        /// Recipient address (wfc1… or wf1…)
         #[arg(long = "to-address")]
         to_address: Address,
         /// Policy amount to send
@@ -22,7 +23,7 @@ pub enum AccountCommand {
     },
     /// Send policy asset to another account with confidential output
     SendConfidentialPolicyAsset {
-        /// Recipient address (Liquid testnet bech32m)
+        /// Recipient address (wfc1… or wf1…)
         #[arg(long = "to-address")]
         to_address: Address,
         /// Recipient blinding public key in hexadecimal
@@ -34,7 +35,7 @@ pub enum AccountCommand {
     },
     /// Send arbitrary asset to another account
     SendAsset {
-        /// Recipient address (Liquid testnet bech32m)
+        /// Recipient address (wfc1… or wf1…)
         #[arg(long = "to-address")]
         to_address: Address,
         /// Asset ID in hexadecimal (big-endian) to send
@@ -46,7 +47,7 @@ pub enum AccountCommand {
     },
     /// Send arbitrary asset to another account with confidential output
     SendConfidentialAsset {
-        /// Recipient address (Liquid testnet bech32m)
+        /// Recipient address (wfc1… or wf1…)
         #[arg(long = "to-address")]
         to_address: Address,
         /// Recipient blinding public key in hexadecimal
@@ -154,7 +155,8 @@ impl Account {
         asset_id_hex_be: &str,
         amount: u64,
     ) -> Result<(), AccountCommandError> {
-        let asset_id = AssetId::from_str(asset_id_hex_be)?;
+        let asset_id = AssetId::from_str(asset_id_hex_be)
+            .map_err(|e| AccountCommandError::InvalidAssetId(e.to_string()))?;
         Account::send_asset_with_blinding(context, to_address, asset_id, None, amount)
     }
 
@@ -181,7 +183,8 @@ impl Account {
         asset_id_hex_be: &str,
         amount: u64,
     ) -> Result<(), AccountCommandError> {
-        let asset_id = AssetId::from_str(asset_id_hex_be)?;
+        let asset_id = AssetId::from_str(asset_id_hex_be)
+            .map_err(|e| AccountCommandError::InvalidAssetId(e.to_string()))?;
         Account::send_asset_with_blinding(
             context,
             to_address,
@@ -203,7 +206,7 @@ impl Account {
                 PublicKey::from_str(key).map_err(|source| {
                     AccountCommandError::InvalidRecipientBlindingPublicKey {
                         key: key.to_owned(),
-                        source,
+                        reason: source.to_string(),
                     }
                 })
             })
@@ -215,7 +218,7 @@ impl Account {
 
         for utxo in asset_utxos {
             total_inputs_amount += utxo.amount();
-            inputs.push((utxo, RequiredSignature::NativeEcdsa));
+            inputs.push((utxo, RequiredSignature::KeyPath));
 
             if total_inputs_amount >= amount {
                 break;
@@ -287,7 +290,7 @@ impl Account {
 
         ft.add_input(
             PartialInput::new(utxo_to_split.clone()),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
 
         let signer_script_pubkey = context.signer.get_address().script_pubkey();
@@ -375,7 +378,7 @@ impl Account {
             }
 
             total_amount += utxo.amount();
-            ft.add_input(PartialInput::new(utxo), RequiredSignature::NativeEcdsa);
+            ft.add_input(PartialInput::new(utxo), RequiredSignature::KeyPath);
         }
 
         let merged_output = PartialOutput::new(

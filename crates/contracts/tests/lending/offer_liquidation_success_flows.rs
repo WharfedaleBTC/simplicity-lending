@@ -1,6 +1,7 @@
-use lending_contracts::programs::program::SimplexProgram;
-use simplex::signer::Signer;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_contracts::programs::program::SimplicityProgram;
+use lending_sdk::provider::ProviderTrait;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use lending_contracts::programs::lending::{LendingOffer, LendingOfferParameters, OfferParameters};
 
@@ -10,7 +11,7 @@ use super::setup::{
 };
 
 fn default_offer_liquidation_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     lender: &Signer,
 ) -> anyhow::Result<(LendingOffer, LendingOfferParameters)> {
     let provider = context.get_default_provider();
@@ -20,12 +21,13 @@ fn default_offer_liquidation_setup(
     let issuance_factory = setup_issuance_factory(context)?;
 
     let principal_asset_amount = 200000;
-    let current_height = provider.fetch_tip_height()?;
+    // Loans end at a unix time (an hour from the tip block).
+    let current_time = u32::try_from(provider.fetch_tip_timestamp()?)?;
 
     let offer_parameters = OfferParameters {
         collateral_amount: 3000,
         principal_amount: 10000,
-        loan_expiration_time: current_height + 60,
+        loan_expiration_time: current_time + 3600,
         principal_interest_rate: 1000,
     };
 
@@ -48,23 +50,12 @@ fn default_offer_liquidation_setup(
     Ok((offer, offer_parameters))
 }
 
-#[simplex::test]
-fn offer_liquidation_succeeds_after_expiration_time(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
-    let provider = context.get_default_provider();
-    let lender = context.random_signer();
-
-    let (lending_offer, offer_parameters) = default_offer_liquidation_setup(&context, &lender)?;
-
-    let offer_expiration_height =
-        (offer_parameters.offer_parameters.loan_expiration_time + 1) as u64;
-    context
-        .get_network_utils()
-        .mine_until_height(offer_expiration_height)?;
-
-    assert!(provider.fetch_tip_height()? >= offer_parameters.offer_parameters.loan_expiration_time);
-
+fn liquidation_ft(
+    lending_offer: &LendingOffer,
+    offer_parameters: &LendingOfferParameters,
+    provider: &dyn ProviderTrait,
+    lender: &Signer,
+) -> anyhow::Result<FinalTransaction> {
     let active_offer_utxo =
         provider.fetch_scripthash_utxos(&lending_offer.get_script_pubkey())?[0].clone();
     let lender_nft_utxo = lender.get_utxos_asset(offer_parameters.lender_nft_asset_id)?[0].clone();
@@ -75,7 +66,7 @@ fn offer_liquidation_succeeds_after_expiration_time(
 
     ft.add_input(
         PartialInput::new(lender_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(
@@ -84,7 +75,43 @@ fn offer_liquidation_succeeds_after_expiration_time(
         offer_parameters.collateral_asset_id,
     ));
 
+    Ok(ft)
+}
+
+#[test]
+fn offer_liquidation_succeeds_after_expiration_time() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
+    let provider = context.get_default_provider();
+    let lender = context.random_signer();
+
+    let (lending_offer, offer_parameters) = default_offer_liquidation_setup(&context, &lender)?;
+
+    // An idle chain makes no blocks; the clock still moves, and the block that includes the
+    // liquidation is stamped after the expiry.
+    context.advance_time(3600);
+
+    let ft = liquidation_ft(&lending_offer, &offer_parameters, provider, &lender)?;
     lender.broadcast(&ft)?.wait()?;
+
+    assert!(
+        provider.fetch_tip_timestamp()?
+            > u64::from(offer_parameters.offer_parameters.loan_expiration_time)
+    );
+
+    Ok(())
+}
+
+#[test]
+fn offer_liquidation_fails_before_expiration_time() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
+    let provider = context.get_default_provider();
+    let lender = context.random_signer();
+
+    let (lending_offer, offer_parameters) = default_offer_liquidation_setup(&context, &lender)?;
+
+    let ft = liquidation_ft(&lending_offer, &offer_parameters, provider, &lender)?;
+    let err = lender.broadcast(&ft).unwrap_err().to_string();
+    assert!(err.contains("lock_time not reached"), "{err}");
 
     Ok(())
 }

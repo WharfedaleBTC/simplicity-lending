@@ -1,18 +1,18 @@
 use lending_contracts::programs::asset_auth_vault::{
     FinalizedAssetAuthVault, FinalizedAssetAuthVaultParameters,
 };
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::signer::Signer;
-use simplex::simplicityhl::elements::Script;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::Script;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::setup::{
     final_supply, fund_keeper, issue_auth_assets, prepare_vault_asset, setup_asset_auth_vault,
 };
 
 fn default_vault_withdrawing_all_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     keeper: &Signer,
     vault_asset_amounts: Vec<u64>,
     amount_to_supply: u64,
@@ -42,10 +42,10 @@ fn default_vault_withdrawing_all_setup(
     Ok((finalized_vault, vault_parameters))
 }
 
-#[simplex::test]
-fn withdraw_all_succeeds_with_one_explicit_output_without_keeper_asset_burn(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_succeeds_with_one_explicit_output_without_keeper_asset_burn() -> anyhow::Result<()>
+{
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -63,7 +63,7 @@ fn withdraw_all_succeeds_with_one_explicit_output_without_keeper_asset_burn(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -84,10 +84,9 @@ fn withdraw_all_succeeds_with_one_explicit_output_without_keeper_asset_burn(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_succeeds_with_one_explicit_output_with_keeper_asset_burn(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_succeeds_with_one_explicit_output_with_keeper_asset_burn() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -105,7 +104,7 @@ fn withdraw_all_succeeds_with_one_explicit_output_with_keeper_asset_burn(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         Script::new_op_return(b"burn"),
@@ -126,10 +125,9 @@ fn withdraw_all_succeeds_with_one_explicit_output_with_keeper_asset_burn(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_succeeds_with_one_explicit_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_succeeds_with_one_explicit_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -147,7 +145,7 @@ fn withdraw_all_succeeds_with_one_explicit_output(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -168,10 +166,9 @@ fn withdraw_all_succeeds_with_one_explicit_output(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_succeeds_with_several_explicit_outputs(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_succeeds_with_several_explicit_outputs() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -189,7 +186,7 @@ fn withdraw_all_succeeds_with_several_explicit_outputs(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),
@@ -215,10 +212,9 @@ fn withdraw_all_succeeds_with_several_explicit_outputs(
     Ok(())
 }
 
-#[simplex::test]
-fn withdraw_all_succeeds_with_confidential_output(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn withdraw_all_succeeds_with_confidential_output() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let keeper = context.random_signer();
 
@@ -236,7 +232,7 @@ fn withdraw_all_succeeds_with_confidential_output(
 
     ft.add_input(
         PartialInput::new(keeper_auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         keeper.get_address().script_pubkey(),

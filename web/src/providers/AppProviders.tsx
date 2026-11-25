@@ -6,8 +6,8 @@ import type { PropsWithChildren } from 'react'
 import { env } from '@/constants/env'
 
 import { AssetDenominationProvider } from './assetDenomination/AssetDenominationProvider'
+import { ChainProvider } from './chain/ChainProvider'
 import { IndexerSubscription } from './indexerEvents/IndexerSubscription'
-import { LwkProvider } from './lwk/LwkProvider'
 import { PendingTransactionsProvider } from './pendingTransactions/PendingTransactionsProvider'
 import { pendingTxToastQueue } from './pendingTransactions/pendingTxToastQueue'
 import { queryClient } from './queryClient'
@@ -17,7 +17,7 @@ import { WalletProvider } from './wallet/WalletProvider'
 export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
-      <LwkProvider>
+      <ChainProvider>
         <WalletProvider>
           <IndexerSubscription />
           <TxProgressProvider>
@@ -28,7 +28,7 @@ export function AppProviders({ children }: PropsWithChildren) {
             <ToastProvider queue={pendingTxToastQueue} placement='bottom' />
           </TxProgressProvider>
         </WalletProvider>
-      </LwkProvider>
+      </ChainProvider>
       {env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   )

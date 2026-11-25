@@ -1,6 +1,6 @@
-use lending_contracts::programs::program::SimplexProgram;
-use simplex::signer::Signer;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_contracts::programs::program::SimplicityProgram;
+use lending_sdk::signer::Signer;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use lending_contracts::programs::lending::{
     LendingOffer, LendingOfferParameters, OfferParameters, OfferRepaymentPhase,
@@ -13,7 +13,7 @@ use super::setup::{
 };
 
 fn default_partial_repayment_setup(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     lender: &Signer,
 ) -> anyhow::Result<(LendingOffer, LendingOfferParameters)> {
     let provider = context.get_default_provider();
@@ -23,12 +23,13 @@ fn default_partial_repayment_setup(
     let issuance_factory = setup_issuance_factory(context)?;
 
     let principal_asset_amount = 200000;
-    let current_height = provider.fetch_tip_height()?;
+    // Loans end at a unix time (an hour from the tip block).
+    let current_time = u32::try_from(provider.fetch_tip_timestamp()?)?;
 
     let offer_parameters = OfferParameters {
         collateral_amount: 3000,
         principal_amount: 10000,
-        loan_expiration_time: current_height + 60,
+        loan_expiration_time: current_time + 3600,
         principal_interest_rate: 1000,
     };
 
@@ -52,7 +53,7 @@ fn default_partial_repayment_setup(
 }
 
 fn check_vault_balances(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     offer: &LendingOffer,
     expected_lender_vault_amount: u64,
     expected_protocol_fee_vault_amount: u64,
@@ -72,10 +73,10 @@ fn check_vault_balances(
     Ok(())
 }
 
-#[simplex::test]
-fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_less_than_the_total_fee_amount(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_less_than_the_total_fee_amount()
+-> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -112,7 +113,7 @@ fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_less_than_the_t
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         borrower.get_address().script_pubkey(),
@@ -124,7 +125,7 @@ fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_less_than_the_t
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(
@@ -160,10 +161,10 @@ fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_less_than_the_t
     Ok(())
 }
 
-#[simplex::test]
-fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_bigger_than_the_total_fee_amount(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_bigger_than_the_total_fee_amount()
+-> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -200,7 +201,7 @@ fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_bigger_than_the
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         borrower.get_address().script_pubkey(),
@@ -212,7 +213,7 @@ fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_bigger_than_the
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(
@@ -246,10 +247,10 @@ fn partial_repayment_succeeds_in_no_repayments_phase_with_amount_bigger_than_the
     Ok(())
 }
 
-#[simplex::test]
-fn partial_repayment_succeeds_in_repayment_offer_fee_phase_with_amount_less_than_the_total_fee_amount(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_repayment_succeeds_in_repayment_offer_fee_phase_with_amount_less_than_the_total_fee_amount()
+-> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -296,7 +297,7 @@ fn partial_repayment_succeeds_in_repayment_offer_fee_phase_with_amount_less_than
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         borrower.get_address().script_pubkey(),
@@ -314,7 +315,7 @@ fn partial_repayment_succeeds_in_repayment_offer_fee_phase_with_amount_less_than
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(
@@ -356,10 +357,9 @@ fn partial_repayment_succeeds_in_repayment_offer_fee_phase_with_amount_less_than
     Ok(())
 }
 
-#[simplex::test]
-fn partial_repayment_succeeds_in_principal_repayment_phase(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn partial_repayment_succeeds_in_principal_repayment_phase() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let borrower = context.get_default_signer();
     let lender = context.random_signer();
@@ -405,7 +405,7 @@ fn partial_repayment_succeeds_in_principal_repayment_phase(
 
     ft.add_input(
         PartialInput::new(borrower_nft_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
     ft.add_output(PartialOutput::new(
         borrower.get_address().script_pubkey(),
@@ -423,7 +423,7 @@ fn partial_repayment_succeeds_in_principal_repayment_phase(
 
     ft.add_input(
         PartialInput::new(borrower_principal_utxo),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(

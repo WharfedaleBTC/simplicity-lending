@@ -8,6 +8,7 @@ import type { OfferShort, OfferStatus } from '@/api/indexer/schemas'
 import ChevronDownIcon from '@/components/icons/ChevronDownIcon'
 import ChevronsExpandVerticalIcon from '@/components/icons/ChevronsExpandVerticalIcon'
 import TriangleExclamationIcon from '@/components/icons/TriangleExclamationIcon'
+import { OfferApr } from '@/components/OfferApr'
 import { OfferStatusChip } from '@/components/OfferStatusChip'
 import { OfferStatusFilter } from '@/components/OfferStatusFilter'
 import { UiPagination } from '@/components/ui/UiPagination'
@@ -19,7 +20,7 @@ import { usePendingTransactions } from '@/providers/pendingTransactions/usePendi
 import { useWallet } from '@/providers/wallet/useWallet'
 import { formatAmount } from '@/utils/format'
 import { resolveActorRole } from '@/utils/offerActions'
-import { calcInterest, computeApr, formatOfferTermLeft } from '@/utils/offers'
+import { calcInterest, formatOfferTermLeft } from '@/utils/offers'
 import { getOfferPendingTx } from '@/utils/pendingTransactions'
 import {
   formatPolicyAssetAmount,
@@ -80,7 +81,7 @@ function StatusColumn({
 
 interface OffersTableProps<T extends OfferShort> {
   offers: T[]
-  currentBlockHeight: number
+  currentTime: number
   collateralAsset?: ConfigAsset
   principalAsset?: ConfigAsset
   page?: number
@@ -96,7 +97,7 @@ interface OffersTableProps<T extends OfferShort> {
 
 export default function OffersTable<T extends OfferShort>({
   offers,
-  currentBlockHeight,
+  currentTime,
   collateralAsset = NETWORK_CONFIG.collateralAsset,
   principalAsset = NETWORK_CONFIG.principalAsset,
   page,
@@ -140,7 +141,7 @@ export default function OffersTable<T extends OfferShort>({
   const resolveOfferWarning = useCallback(
     (offer: OfferShort): { severity: keyof typeof SEVERITY_STYLES; message: string } | null => {
       const role = resolveActorRole(offer, scriptPubkey)
-      const expired = currentBlockHeight > offer.loan_expiration_height
+      const expired = currentTime > offer.loan_expiration_time
 
       if (role === 'lender') {
         if (offer.status === 'active' && expired)
@@ -174,7 +175,7 @@ export default function OffersTable<T extends OfferShort>({
       }
       return null
     },
-    [scriptPubkey, currentBlockHeight],
+    [scriptPubkey, currentTime],
   )
 
   const handleRowAction = (key: Key) => {
@@ -237,7 +238,7 @@ export default function OffersTable<T extends OfferShort>({
               </Table.Column>
               <SortableColumn id='interest_rate' label='APR (%)' sortable={!!onSortChange} />
               <SortableColumn
-                id='loan_expiration_height'
+                id='loan_expiration_time'
                 label='Term Left'
                 sortable={!!onSortChange}
               />
@@ -246,7 +247,7 @@ export default function OffersTable<T extends OfferShort>({
             <Table.Body
               items={offers}
               dependencies={[
-                currentBlockHeight,
+                currentTime,
                 scriptPubkey,
                 resolveOfferWarning,
                 pendingTxs,
@@ -265,7 +266,7 @@ export default function OffersTable<T extends OfferShort>({
               {offer => {
                 const isProcessing = Boolean(getOfferPendingTx(offer.id, pendingTxs))
                 const warning = isProcessing ? null : resolveOfferWarning(offer)
-                const termLeft = formatOfferTermLeft(offer, currentBlockHeight)
+                const termLeft = formatOfferTermLeft(offer, currentTime)
                 return (
                   <Table.Row
                     id={offer.id}
@@ -318,11 +319,7 @@ export default function OffersTable<T extends OfferShort>({
                       )}
                     </Table.Cell>
                     <Table.Cell className='pl-9'>
-                      {computeApr(
-                        offer.interest_rate,
-                        offer.loan_expiration_height - offer.created_at_height,
-                      ).toFixed(2)}
-                      %
+                      <OfferApr offer={offer} />
                     </Table.Cell>
                     <Table.Cell className='pl-9'>
                       {termLeft === 'Expired' ? (

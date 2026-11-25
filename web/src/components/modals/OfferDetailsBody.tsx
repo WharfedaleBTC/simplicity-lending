@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { useBlockHeight } from '@/api/esplora/hooks'
+import { useBlockTimestamps, useChainTime } from '@/api/esplora/hooks'
 import type { OfferShort } from '@/api/indexer/schemas'
 import { useAssetPriceUsd } from '@/api/prices/hooks'
 import BalanceCard from '@/components/BalanceCard'
@@ -9,13 +9,15 @@ import { NETWORK_CONFIG } from '@/constants/network-config'
 import { APR_TOOLTIP, PROTOCOL_FEE_LABEL, PROTOCOL_FEE_TOOLTIP } from '@/constants/offers'
 import { useFormatAmount } from '@/hooks/useFormatAmount'
 import { useWallet } from '@/providers/wallet/useWallet'
-import { truncateAddress } from '@/utils/format'
+import { formatTermLeft, truncateAddress } from '@/utils/format'
 import {
   calcInterest,
   computeApr,
   computeLtv,
   computeProtocolFee,
   formatOfferTermLeft,
+  formatUnixTime,
+  getOfferDurationSeconds,
 } from '@/utils/offers'
 
 interface OfferDetailsBodyProps {
@@ -32,12 +34,16 @@ export default function OfferDetailsBody({
   const { principalAsset, collateralAsset } = NETWORK_CONFIG
   const { confirmedBalances, pendingBalances, isReady } = useWallet()
   const { formatCollateralDisplay, formatPrincipalAmount } = useFormatAmount()
-  const { data: currentBlockHeight } = useBlockHeight()
+  const { data: currentTime } = useChainTime()
+  const createdTimes = useBlockTimestamps([offer.created_at_height])
   const collateralUsd = useAssetPriceUsd(collateralAsset.id)
 
   const loanInfoRows = useMemo<DetailRow[]>(() => {
     const interest = calcInterest(offer.principal_amount, offer.interest_rate)
-    const loanDurationBlocks = offer.loan_expiration_height - offer.created_at_height
+    const loanDurationSeconds = getOfferDurationSeconds(
+      offer,
+      createdTimes[offer.created_at_height],
+    )
     const borrower = offer.participants.find(p => p.participant_type === 'borrower')
     const ltv = computeLtv({
       principal: offer.principal_amount,
@@ -77,7 +83,7 @@ export default function OfferDetailsBody({
       },
       {
         label: 'APR',
-        value: `${computeApr(offer.interest_rate, loanDurationBlocks).toFixed(2)}%`,
+        value: `${computeApr(offer.interest_rate, loanDurationSeconds).toFixed(2)}%`,
         tooltip: APR_TOOLTIP,
       },
       {
@@ -92,13 +98,14 @@ export default function OfferDetailsBody({
       rows.push({
         label: 'Borrower ID',
         value: truncateAddress(borrower.script_pubkey),
-        tooltip: 'The Liquid address of the borrower who took this loan.',
+        tooltip: 'The address of the borrower who took this loan.',
       })
     }
 
     return rows
   }, [
     offer,
+    createdTimes,
     formatCollateralDisplay,
     formatPrincipalAmount,
     principalAsset,
@@ -110,26 +117,22 @@ export default function OfferDetailsBody({
     () => [
       {
         label: 'Term Left',
-        value: formatOfferTermLeft(offer, currentBlockHeight),
+        value: formatOfferTermLeft(offer, currentTime),
         tooltip: 'Time left to repay before the loan is due.',
       },
       {
-        label: 'Current Block',
-        value: String(currentBlockHeight),
-        tooltip: 'The latest Liquid block.',
-      },
-      {
         label: 'Repayment Due',
-        value: String(offer.loan_expiration_height),
+        value: formatUnixTime(offer.loan_expiration_time),
         tooltip: 'When your repayment is due by.',
       },
       {
         label: 'Time to Liquidation',
-        value: `${Math.max(0, offer.loan_expiration_height - currentBlockHeight)} Blocks`,
-        tooltip: "Time left before the lender can claim your collateral if it's unpaid.",
+        value: formatTermLeft(offer.loan_expiration_time - currentTime),
+        tooltip:
+          "Time left before the lender can claim your collateral if it's unpaid: after this, the first Wharfedale block can include the liquidation.",
       },
     ],
-    [offer, currentBlockHeight],
+    [offer, currentTime],
   )
 
   return (

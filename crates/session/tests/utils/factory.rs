@@ -1,19 +1,18 @@
 use anyhow::Context;
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 use lending_indexer::indexer::{insert_factory, insert_factory_auth_utxo, insert_factory_utxo};
 use lending_indexer::models::{FactoryAuthModel, FactoryModel, FactoryStatus, FactoryUtxoModel};
+use lending_sdk::Network;
+use lending_sdk::elements::{AssetId, Txid};
 use lending_session::Session;
-use simplex::provider::SimplicityNetwork;
-use simplex::simplicityhl::elements::hashes::Hash;
-use simplex::simplicityhl::elements::{AssetId, Txid};
 use sqlx::PgPool;
 use uuid::Uuid;
 
 pub const FACTORY_ISSUING_UTXOS_COUNT: u8 = 2;
 pub const FACTORY_REISSUANCE_FLAGS: u64 = 0;
 
-pub fn issuance_factory_for_network(network: SimplicityNetwork) -> IssuanceFactory {
+pub fn issuance_factory_for_network(network: Network) -> IssuanceFactory {
     IssuanceFactory::new(IssuanceFactoryParameters {
         issuing_utxos_count: FACTORY_ISSUING_UTXOS_COUNT,
         reissuance_flags: FACTORY_REISSUANCE_FLAGS,
@@ -38,7 +37,7 @@ pub async fn seed_active_factory(
 
     let factory = FactoryModel {
         id: factory_id,
-        factory_asset_id: factory_asset_id.into_inner().0.to_vec(),
+        factory_asset_id: factory_asset_id.to_byte_array().to_vec(),
         program_script_pubkey,
         issuing_utxos_count,
         reissuance_flags,

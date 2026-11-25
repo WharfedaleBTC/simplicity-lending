@@ -42,9 +42,8 @@ async fn liquidate_offer_burns_lender_nft_and_returns_collateral_after_expiratio
 
     fund_asset_outputs(&borrower, lender.signer(), principal_asset_id, &[1])?;
 
-    context
-        .get_network_utils()
-        .mine_until_height((offer.parameters.offer_parameters.loan_expiration_time + 1) as u64)?;
+    // Idle chains make no blocks; the clock moves on.
+    context.advance_time(u64::from(LIQUIDATION_LOAN_EXPIRATION_OFFSET) + 1);
 
     let liquidation_tx = lender.liquidate_offer("1").await?;
 

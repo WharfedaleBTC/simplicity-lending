@@ -1,12 +1,12 @@
 use lending_contracts::programs::asset_auth::{AssetAuth, AssetAuthParameters};
 
-use simplex::transaction::FinalTransaction;
+use lending_sdk::transaction::FinalTransaction;
 
 use super::common::issuance::issue_asset;
 use super::common::wallet::split_first_signer_utxo;
 
 pub(super) fn setup_asset_auth(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     asset_amount: u64,
     with_asset_burn: bool,
 ) -> anyhow::Result<(AssetAuth, AssetAuthParameters)> {

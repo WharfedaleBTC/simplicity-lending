@@ -1,14 +1,14 @@
 use lending_contracts::programs::asset_auth::{AssetAuthParameters, AssetAuthWitnessParams};
-use lending_contracts::programs::program::SimplexProgram;
+use lending_contracts::programs::program::SimplicityProgram;
 
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use crate::asset_auth_tests::common::wallet::get_split_utxo_ft;
 
 use super::setup::setup_asset_auth;
 
 fn split_auth_utxo(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     amounts: Vec<u64>,
     asset_auth_parameters: AssetAuthParameters,
 ) -> anyhow::Result<()> {
@@ -23,10 +23,9 @@ fn split_auth_utxo(
     Ok(())
 }
 
-#[simplex::test]
-fn fails_to_unlock_when_auth_input_amount_is_invalid(
-    context: simplex::TestContext,
-) -> anyhow::Result<()> {
+#[test]
+fn fails_to_unlock_when_auth_input_amount_is_invalid() -> anyhow::Result<()> {
+    let context = lending_sdk::TestContext::new();
     let provider = context.get_default_provider();
     let signer = context.get_default_signer();
 
@@ -48,7 +47,7 @@ fn fails_to_unlock_when_auth_input_amount_is_invalid(
 
     ft.add_input(
         PartialInput::new(auth_utxo.clone()),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(

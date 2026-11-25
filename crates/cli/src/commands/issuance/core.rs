@@ -1,10 +1,10 @@
 use clap::Subcommand;
 
-use simplex::simplicityhl::elements::hex::ToHex;
-use simplex::simplicityhl::elements::{AssetId, OutPoint};
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
-use simplex::utils;
+use lending_sdk::elements::{AssetId, OutPoint};
+use lending_sdk::hex::ToHex;
+use lending_sdk::transaction as utils;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use lending_contracts::utils::get_random_seed;
 
@@ -91,7 +91,7 @@ impl Issuance {
         let issuance_details = ft.add_issuance_input(
             PartialInput::new(first_utxo.clone()),
             IssuanceInput::new_issuance(asset_amount, inflation_amount.unwrap_or(0), asset_entropy),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
 
         let signer_script_pubkey = context.signer.get_address().script_pubkey();
@@ -183,7 +183,7 @@ impl Issuance {
         let issuance_details = ft.add_issuance_input(
             PartialInput::new(reissuance_utxo.clone()),
             IssuanceInput::new_reissuance(asset_amount, asset_entropy_bytes),
-            RequiredSignature::NativeEcdsa,
+            RequiredSignature::KeyPath,
         );
         let expected_reissuance_token_id = issuance_details.inflation_asset_id;
 

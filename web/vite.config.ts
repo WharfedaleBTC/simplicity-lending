@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { checker } from 'vite-plugin-checker'
 
-import { lwkBuildCheckPlugin } from './plugins/lwkBuildCheckPlugin'
+import { wasmBuildCheckPlugin } from './plugins/wasmBuildCheckPlugin'
 import { simplicitySourcesPlugin } from './plugins/simplicitySourcesPlugin'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
@@ -26,7 +26,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [
-      lwkBuildCheckPlugin(root),
+      wasmBuildCheckPlugin(root),
       publicUrlPlugin(configEnv.VITE_PUBLIC_URL),
       simplicitySourcesPlugin({
         configPath: './simplicity-covenants.config.json',
@@ -45,9 +45,6 @@ export default defineConfig(({ command, mode }) => {
     ],
     resolve: {
       alias: { '@': path.join(root, 'src') },
-    },
-    optimizeDeps: {
-      exclude: ['lwk_wasm'],
     },
     server: useLocalApiProxy
       ? {

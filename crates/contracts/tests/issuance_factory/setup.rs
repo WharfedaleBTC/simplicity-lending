@@ -1,14 +1,14 @@
 use lending_contracts::programs::issuance_factory::{IssuanceFactory, IssuanceFactoryParameters};
 
 use lending_contracts::utils::get_random_seed;
-use simplex::simplicityhl::elements::AssetId;
-use simplex::transaction::partial_input::IssuanceInput;
-use simplex::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
+use lending_sdk::elements::AssetId;
+use lending_sdk::transaction::IssuanceInput;
+use lending_sdk::transaction::{FinalTransaction, PartialInput, PartialOutput, RequiredSignature};
 
 use super::common::wallet::split_first_signer_utxo;
 
 pub(super) fn setup_issuance_factory(
-    context: &simplex::TestContext,
+    context: &lending_sdk::TestContext,
     issuing_utxos_count: u8,
     reissuance_flags: u64,
 ) -> anyhow::Result<(AssetId, IssuanceFactory, IssuanceFactoryParameters)> {
@@ -33,7 +33,7 @@ pub(super) fn setup_issuance_factory(
     let issuance_details = ft.add_issuance_input(
         PartialInput::new(policy_utxo),
         IssuanceInput::new_issuance(issuance_factory_asset_amount, 0, issuance_factory_entropy),
-        RequiredSignature::NativeEcdsa,
+        RequiredSignature::KeyPath,
     );
 
     ft.add_output(PartialOutput::new(

@@ -11,17 +11,17 @@ import OfferDetailsBody from '@/components/modals/OfferDetailsBody'
 import { NETWORK_CONFIG } from '@/constants/network-config'
 import { useClaimPrincipal } from '@/hooks/useClaimPrincipal'
 import { useStandardTransactionFlow } from '@/hooks/useStandardTransactionFlow'
+import { useChain } from '@/providers/chain/useChain'
+import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
+import { useWallet } from '@/providers/wallet/useWallet'
+import { ASSET_AUTH_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/asset-auth/program'
+import { formatAmount } from '@/utils/format'
 import {
   estimateFeeBudgetSats,
   EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY,
   selectFeeUtxos,
   utxoToOutpointString,
-} from '@/lwk/utxo'
-import { useLwk } from '@/providers/lwk/useLwk'
-import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
-import { useWallet } from '@/providers/wallet/useWallet'
-import { ASSET_AUTH_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/asset-auth/program'
-import { formatAmount } from '@/utils/format'
+} from '@/wharfedale/utxo'
 
 const CLAIM_PRINCIPAL_WEIGHT_UNITS =
   ASSET_AUTH_MAX_WEIGHT_TO_SATISFY + EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY
@@ -41,7 +41,7 @@ export default function ClaimPrincipalModal({
 }: ClaimPrincipalModalProps) {
   const { principalAsset } = NETWORK_CONFIG
   const { syncWallet, getBlindedWalletUtxos, scriptPubkey } = useWallet()
-  const { lwkNetwork } = useLwk()
+  const { chainNetwork: lwkNetwork } = useChain()
   const { claimPrincipal } = useClaimPrincipal()
   const runStandardTransactionFlow = useStandardTransactionFlow()
   const { addPendingTx } = usePendingTransactions()
