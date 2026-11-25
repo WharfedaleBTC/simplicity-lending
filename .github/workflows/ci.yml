@@ -1,13 +1,13 @@
-# Tests the lending workspace and the web app; on main and on version tags publishes the images
+# Checks the lending workspace and the web app; on main and on version tags publishes the images
 # ghcr.io/wharfedalebtc/lending-indexer and ghcr.io/wharfedalebtc/lending-web (linux/amd64 +
 # linux/arm64), which the demo deployment (WharfedaleBTC/demo-prod) runs.
 #
 #   push to main     → image tags `latest` and `sha-<short>`
 #   push tag vX.Y.Z  → image tags `X.Y.Z`, `X.Y` and `sha-<short>`
-#   pull request     → tests only
+#   pull request     → checks only
 #
-# The tests are unit, contract (in-process chain) and indexer tests; the end-to-end test
-# (crates/e2e, `make e2e`) needs a running network and is not run here.
+# Checks: Rust format and clippy, web lint, format and build. Tests are not run here: run
+# `make test` and `make e2e` (needs a running network) locally.
 #
 # The workspace builds against sibling checkouts, laid out as locally:
 #   wharfedale/          WharfedaleBTC/wharfedale at WHARFEDALE_REF (the node: its ledger crate
@@ -41,15 +41,6 @@ env:
 jobs:
   rust:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: lending-indexer
-        ports: ["5432:5432"]
-        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { path: simplicity-lending, persist-credentials: false }
@@ -79,12 +70,6 @@ jobs:
       - name: Clippy
         working-directory: simplicity-lending
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-
-      - name: Tests
-        working-directory: simplicity-lending
-        env:
-          DATABASE_URL: postgres://postgres:password@localhost:5432/lending-indexer
-        run: cargo test --workspace --locked
 
   web:
     runs-on: ubuntu-latest
