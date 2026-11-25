@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import TriangleExclamationIcon from '@/components/icons/TriangleExclamationIcon'
 import { MnemonicInput } from '@/components/MnemonicInput'
+import { RecoveryPhraseActions } from '@/components/RecoveryPhraseBackup'
 import { UiButton } from '@/components/ui/UiButton'
 import { UiModal } from '@/components/ui/UiModal'
 import { useWallet } from '@/providers/wallet/useWallet'
@@ -20,12 +21,19 @@ interface ConnectWalletModalProps {
 export function ConnectWalletModal({ isOpen, onOpenChange }: ConnectWalletModalProps) {
   const { connect, connectionStatus, isError, error } = useWallet()
   const [mnemonic, setMnemonic] = useState('')
+  // A phrase generated here must be backed up before connecting: the tab forgets it on close.
+  const [generated, setGenerated] = useState<string | null>(null)
+  const [backedUp, setBackedUp] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [wasOpen, setWasOpen] = useState(isOpen)
 
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen)
-    if (isOpen) setMnemonic('')
+    if (isOpen) {
+      setMnemonic('')
+      setGenerated(null)
+      setBackedUp(false)
+    }
   }
 
   useEffect(() => {
@@ -41,8 +49,11 @@ export function ConnectWalletModal({ isOpen, onOpenChange }: ConnectWalletModalP
     }
   }
 
+  const isGenerated = generated !== null && generated === mnemonic
   const canConnect =
-    mnemonic.split(/\s+/).filter(Boolean).length === 12 && isValidMnemonic(mnemonic)
+    mnemonic.split(/\s+/).filter(Boolean).length === 12 &&
+    isValidMnemonic(mnemonic) &&
+    (!isGenerated || backedUp)
   const visibleError = isError ? error : null
 
   return (
@@ -55,10 +66,34 @@ export function ConnectWalletModal({ isOpen, onOpenChange }: ConnectWalletModalP
       <div className='flex flex-col gap-4'>
         <div className='border-warning bg-warning/15 text-muted flex items-center gap-3 rounded-xl border-2 p-3 text-sm font-medium'>
           <TriangleExclamationIcon className='text-warning size-6 shrink-0' />
-          Your recovery phrase stays in this browser tab. Use the phrase of your Wharfedale web
-          wallet, or generate a new one and write it down.
+          Your recovery phrase stays in this browser tab and is forgotten when it closes. Use the
+          phrase of your Wharfedale web wallet, or generate a new one and back it up.
         </div>
-        <MnemonicInput onChange={setMnemonic} />
+        <MnemonicInput
+          onChange={setMnemonic}
+          onGenerate={phrase => {
+            setGenerated(phrase)
+            setBackedUp(false)
+          }}
+        />
+        {isGenerated && (
+          <div className='border-border flex flex-col gap-3 rounded-2xl border p-3'>
+            <p className='text-sm font-medium'>
+              Back up these 12 words, in order, and keep them offline. They are the only way to
+              restore this wallet; the key file restores it in the Wharfedale web app.
+            </p>
+            <RecoveryPhraseActions phrase={mnemonic} />
+            <label className='flex cursor-pointer items-center gap-2 text-sm font-medium'>
+              <input
+                type='checkbox'
+                className='accent-accent size-4'
+                checked={backedUp}
+                onChange={event => setBackedUp(event.target.checked)}
+              />
+              I wrote the words down in order
+            </label>
+          </div>
+        )}
         {visibleError && <p className='text-danger text-sm'>{visibleError}</p>}
         <UiButton
           variant='primary'

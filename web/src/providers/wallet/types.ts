@@ -7,6 +7,8 @@ export type CachePolicy = 'preserve' | 'clear'
 
 export interface WalletContextValue extends WalletState {
   isReady: boolean
+  /** The connected wallet's recovery phrase (this tab's session storage), for backing it up. */
+  recoveryPhrase: string | null
   /** Connects the recovery-phrase wallet (the phrase stays in this tab's session storage). */
   connect(mnemonic: string): Promise<void>
   /** Kept for the UI's cancel buttons; a recovery-phrase wallet has no pending requests. */

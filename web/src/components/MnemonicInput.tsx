@@ -9,9 +9,11 @@ const WORD_COUNT = 12
 
 interface MnemonicInputProps {
   onChange: (mnemonic: string) => void
+  /** Called with a newly generated phrase (also passed to `onChange`). */
+  onGenerate?: (mnemonic: string) => void
 }
 
-export function MnemonicInput({ onChange }: MnemonicInputProps) {
+export function MnemonicInput({ onChange, onGenerate }: MnemonicInputProps) {
   const [words, setWords] = useState<string[]>(() => Array<string>(WORD_COUNT).fill(''))
 
   const emit = (next: string[]) => {
@@ -35,7 +37,9 @@ export function MnemonicInput({ onChange }: MnemonicInputProps) {
   }
 
   const handleGenerate = () => {
-    emit(requireWasm().generateMnemonic(WORD_COUNT).split(' '))
+    const phrase = requireWasm().generateMnemonic(WORD_COUNT)
+    emit(phrase.split(' '))
+    onGenerate?.(phrase)
   }
 
   return (

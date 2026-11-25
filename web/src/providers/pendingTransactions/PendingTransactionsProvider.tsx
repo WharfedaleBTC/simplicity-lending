@@ -9,23 +9,23 @@ import {
   useState,
 } from 'react'
 
-import { fetchTxConfirmations } from '@/api/esplora/methods'
 import { invalidateAllIndexerQueries } from '@/api/indexer/invalidateIndexerQueries'
 import { fetchBorrowerOffers, fetchFactoriesByScript, fetchOffer } from '@/api/indexer/methods'
 import { borrowerQueryKeys, factoryQueryKeys, offersQueryKeys } from '@/api/indexer/queryKeys'
 import { useLatestRef } from '@/hooks/useLatestRef'
 import { usePendingTxToasts } from '@/hooks/usePendingTxToasts'
+import {
+  fetchTxStatusSnapshot,
+  TX_STATUS_POLL_MS,
+  txStatusQueryKey,
+  type TxStatusSnapshot,
+} from '@/hooks/useTxStatus'
 import { useWallet } from '@/providers/wallet/useWallet'
 
 import { PendingTransactionsContext } from './PendingTransactionsContext'
 import { deletePendingTx, loadPendingTxsForWallet, putPendingTx } from './storage'
 import type { AddPendingTxInput, PendingTxRecord } from './types'
 
-// Wharfedale blocks are final once committed (Malachite BFT): one confirmation is final. A
-// second one may never come, as the chain makes no blocks while idle.
-const CONFIRMATION_POLL_MS = 3_000
-const CONFIRMED_THRESHOLD = 1
-const FINALIZED_THRESHOLD = 1
 /** Defensive cap on how long a pending record can sit untracked before we give up on it. */
 const MAX_PENDING_AGE_MS = 24 * 60 * 60 * 1000
 const FINALIZED_CLEANUP_GRACE_MS = 10 * 60 * 1000
@@ -33,12 +33,6 @@ const SWEEP_INTERVAL_MS = 15_000
 const CREATED_OFFER_HIGHLIGHT_MS = 8_000
 
 type OfferRecordGroup = [offerId: string, records: PendingTxRecord[]]
-type TrackedTxStatus = 'processing' | 'confirmed' | 'finalized'
-
-interface TxStatusSnapshot {
-  status: TrackedTxStatus
-  confirmations: number | null
-}
 
 function usePendingTxConfirmationTracking(
   records: PendingTxRecord[],
@@ -48,26 +42,12 @@ function usePendingTxConfirmationTracking(
   const onUpdateRef = useLatestRef(onUpdate)
   const snapshots = useQueries({
     queries: records.map(record => ({
-      queryKey: ['tx-status', record.txid],
+      queryKey: txStatusQueryKey(record.txid),
       enabled: record.confirmationStatus !== 'finalized',
-      refetchInterval: CONFIRMATION_POLL_MS,
-      queryFn: async ({ signal }) => {
-        const confirmations = await fetchTxConfirmations(record.txid, { signal })
-        if (confirmations === null) {
-          return { status: 'processing', confirmations } satisfies TxStatusSnapshot
-        }
-
-        const status: TrackedTxStatus =
-          confirmations >= FINALIZED_THRESHOLD
-            ? 'finalized'
-            : confirmations >= CONFIRMED_THRESHOLD
-              ? 'confirmed'
-              : 'processing'
-
-        return { status, confirmations } satisfies TxStatusSnapshot
-      },
+      refetchInterval: TX_STATUS_POLL_MS,
+      queryFn: ({ signal }: { signal: AbortSignal }) => fetchTxStatusSnapshot(record.txid, signal),
     })),
-    combine: results => results.map(result => result.data ?? null),
+    combine: results => results.map((result): TxStatusSnapshot | null => result.data ?? null),
   })
 
   useEffect(() => {

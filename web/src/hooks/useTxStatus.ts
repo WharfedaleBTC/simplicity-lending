@@ -1,38 +1,48 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { fetchLatestBlockHeight, fetchTxStatus } from '@/api/esplora/methods'
+import { fetchTxConfirmations } from '@/api/esplora/methods'
 
-const CONFIRMED_THRESHOLD = 1
-const FINALIZED_THRESHOLD = 2
+/**
+ * How often a broadcast transaction's status is checked. Wharfedale makes a block within about
+ * a second of a transaction, so a confirmation shows up on the next check.
+ */
+export const TX_STATUS_POLL_MS = 3_000
 
 export type TxStatus = 'processing' | 'confirmed' | 'finalized'
 
+export interface TxStatusSnapshot {
+  status: TxStatus
+  confirmations: number | null
+}
+
+/** One cache entry per transaction, shared by the transaction dialogs and pending-tx tracking. */
+export function txStatusQueryKey(txid: string) {
+  return ['tx-status', txid] as const
+}
+
+/**
+ * Wharfedale blocks are final once committed (Malachite BFT): one confirmation is final. A
+ * second one may never come, as the chain makes no blocks while idle.
+ */
+export async function fetchTxStatusSnapshot(
+  txid: string,
+  signal?: AbortSignal,
+): Promise<TxStatusSnapshot> {
+  const confirmations = await fetchTxConfirmations(txid, { signal })
+  return confirmations === null
+    ? { status: 'processing', confirmations }
+    : { status: 'finalized', confirmations }
+}
+
 export function useTxStatus(
   txid?: string | null,
-  pollIntervalMs = 15_000,
+  pollIntervalMs = TX_STATUS_POLL_MS,
 ): { status: TxStatus | null; confirmations: number | null; isComplete: boolean } {
-  const { data } = useQuery({
-    queryKey: ['tx-status', txid],
+  const { data } = useQuery<TxStatusSnapshot>({
+    queryKey: txStatusQueryKey(txid ?? ''),
     enabled: Boolean(txid),
     refetchInterval: query => (query.state.data?.status === 'finalized' ? false : pollIntervalMs),
-    queryFn: async () => {
-      const txStatus = await fetchTxStatus(txid as string)
-
-      if (!txStatus.confirmed || txStatus.block_height === undefined) {
-        return { status: 'processing' as TxStatus, confirmations: null }
-      }
-
-      const tip = await fetchLatestBlockHeight()
-      const confirmations = tip - txStatus.block_height + 1
-      const status: TxStatus =
-        confirmations >= FINALIZED_THRESHOLD
-          ? 'finalized'
-          : confirmations >= CONFIRMED_THRESHOLD
-            ? 'confirmed'
-            : 'processing'
-
-      return { status, confirmations }
-    },
+    queryFn: ({ signal }) => fetchTxStatusSnapshot(txid as string, signal),
   })
 
   const status = data?.status ?? null

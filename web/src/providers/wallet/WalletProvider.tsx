@@ -164,6 +164,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       value={{
         ...state,
         isReady: state.connectionStatus === 'ready',
+        recoveryPhrase:
+          state.connectionStatus === 'ready' ? (savedSession?.mnemonic ?? null) : null,
         connect,
         cancelPendingRequest: async () => {},
         disconnect,
