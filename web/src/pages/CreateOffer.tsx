@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { LtvMeter, TxSteps } from '@/components/loans'
@@ -31,6 +31,7 @@ import {
 } from '@/lib/money'
 import { useBtcUsd } from '@/lib/offerFigures'
 import { useAssetDenomination } from '@/providers/assetDenomination/useAssetDenomination'
+import { useChain } from '@/providers/chain/useChain'
 import { usePendingTransactions } from '@/providers/pendingTransactions/usePendingTransactions'
 import { useWallet } from '@/providers/wallet/useWallet'
 import { ISSUANCE_FACTORY_MAX_WEIGHT_TO_SATISFY } from '@/simplicity/issuance-factory/program'
@@ -40,7 +41,13 @@ import { computeApr, computeLtv, computeProtocolFee, feeToBps } from '@/utils/of
 import { getBorrowerAccountPendingTx, getMempoolBlockingTx } from '@/utils/pendingTransactions'
 import { formatPolicyAssetInputValue, parsePolicyAssetInput } from '@/utils/policyAssetDenomination'
 import { selectByLargestFirst } from '@/utils/utxo'
-import { estimateFeeBudgetSats, EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY } from '@/wharfedale/utxo'
+import {
+  estimateFeeBudgetSats,
+  EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY,
+  isConfirmedWalletUtxo,
+  isPolicyAssetUtxo,
+  utxoToOutpointString,
+} from '@/wharfedale/utxo'
 
 const CREATE_OFFER_WEIGHT_UNITS =
   EXPLICIT_SIGNATURE_MAX_WEIGHT_TO_SATISFY + ISSUANCE_FACTORY_MAX_WEIGHT_TO_SATISFY.IssueAssets
@@ -78,7 +85,8 @@ interface Errors {
 export default function CreateOfferPage() {
   const { collateralAsset, principalAsset, protocolFeeAsset } = NETWORK_CONFIG
   const usdt = principalAsset.symbol
-  const { isReady, scriptPubkey } = useWallet()
+  const { isReady, scriptPubkey, syncWallet, getBlindedWalletUtxos } = useWallet()
+  const { chainNetwork } = useChain()
   const { denomination, setDenomination } = useAssetDenomination()
   const unit = wbtcUnit(denomination)
   const btcUsd = useBtcUsd()
@@ -99,6 +107,9 @@ export default function CreateOfferPage() {
   const [interestText, setInterestText] = useState('')
   const [term, setTerm] = useState(30 * DAY)
   const [touched, setTouched] = useState(false)
+  // A first offer is two transactions, one click: the borrower account, then (once indexed)
+  // the offer.
+  const [postAfterAccount, setPostAfterAccount] = useState(false)
 
   const collateral = parsePolicyAssetInput(collateralText, denomination, collateralAsset)
   const loanValid = new RegExp(`^\\d+(\\.\\d{0,${principalAsset.decimals}})?$`)
@@ -165,7 +176,14 @@ export default function CreateOfferPage() {
     const { txid } = await runStandardTransactionFlow(async () => {
       if (!factoryState) throw new Error('No borrower account yet: create it first.')
       if (!collateral || !loan) throw new Error('Fill in the offer first.')
-      const coins = selectByLargestFirst(utxos, collateral + feeBudget)
+      // Coins as they are now, not as the form read them: a borrower account made a moment ago
+      // spent one and left change.
+      await syncWallet()
+      const policyAsset = chainNetwork.policyAsset()
+      const fresh = (await getBlindedWalletUtxos())
+        .filter(coin => isConfirmedWalletUtxo(coin) && isPolicyAssetUtxo(coin, policyAsset))
+        .map(coin => ({ outpoint: utxoToOutpointString(coin), value: coin.unblinded().value() }))
+      const coins = selectByLargestFirst(fresh, collateral + feeBudget)
       if (!coins) {
         throw new Error(
           `Not enough confirmed ${collateralAsset.symbol} for the collateral and a fee reserve of ${formatFeeReserve(feeBudget)}.`,
@@ -213,31 +231,48 @@ export default function CreateOfferPage() {
     setDenomination(next)
   }
 
-  let button: { label: string; disabled: boolean; onClick: () => void }
-  if (!hasAccount) {
-    button = {
-      label:
-        accountPending || account.isSuccess
-          ? 'Waiting for the account…'
-          : 'Create borrower account',
-      disabled:
-        !isReady ||
-        running ||
-        accountPending ||
-        account.isSuccess ||
-        (blocking !== null && !accountPending),
-      onClick: () => account.mutate(),
-    }
-  } else {
-    button = {
-      label: `Lock ${collateral && collateral > 0n ? `${formatWbtc(collateral, denomination)} ${unit}` : unit} and post`,
-      disabled: !isReady || running || offer.isSuccess || blocking !== null,
-      onClick: () => {
-        setTouched(true)
-        if (valid) offer.mutate()
-      },
-    }
+  const lockLabel = `Lock ${collateral && collateral > 0n ? `${formatWbtc(collateral, denomination)} ${unit}` : unit} and post`
+  const waitingForAccount = postAfterAccount && offer.status === 'idle'
+  const button = {
+    label: waitingForAccount && !running ? 'Waiting for the account…' : lockLabel,
+    disabled:
+      !isReady ||
+      running ||
+      waitingForAccount ||
+      offer.isSuccess ||
+      (blocking !== null && !(accountPending && !hasAccount)),
+    onClick: () => {
+      setTouched(true)
+      if (!valid) return
+      if (hasAccount) {
+        offer.mutate()
+        return
+      }
+      setPostAfterAccount(true)
+      if (!accountPending) account.mutate()
+    },
   }
+
+  // Post the offer as soon as the account it needs is indexed and its transaction is in a block.
+  const readyToPost =
+    postAfterAccount &&
+    hasAccount &&
+    factoryState !== null &&
+    offer.status === 'idle' &&
+    blocking === null &&
+    valid
+  const postOffer = offer.mutate
+  useEffect(() => {
+    if (readyToPost) postOffer()
+  }, [readyToPost, postOffer])
+
+  const twoSteps = postAfterAccount || account.status !== 'idle' || !hasAccount
+  const stage =
+    offer.status !== 'idle'
+      ? twoSteps
+        ? 'Transaction 2 of 2 · the offer'
+        : 'The offer'
+      : 'Transaction 1 of 2 · borrower account'
 
   const show = (field: keyof Errors, text: string) =>
     touched || text.trim() !== '' ? errors[field] : undefined
@@ -426,18 +461,27 @@ export default function CreateOfferPage() {
                 {running ? 'Working…' : button.label}
                 {!running && <ArrowRight />}
               </button>
-              {activeTx.status === 'idle' && (
+              {twoSteps && (
                 <ol className='steps-list steps-list--compact'>
                   <li data-state={hasAccount ? 'done' : 'active'}>
                     <span className='index-no'>01</span>
                     <span>Borrower account: your first offer only</span>
                   </li>
-                  <li data-state={offer.isSuccess ? 'done' : hasAccount ? 'active' : undefined}>
+                  <li
+                    data-state={
+                      offer.isSuccess
+                        ? 'done'
+                        : hasAccount || offer.status !== 'idle'
+                          ? 'active'
+                          : undefined
+                    }
+                  >
                     <span className='index-no'>02</span>
                     <span>Lock the {collateralAsset.symbol} and post the offer</span>
                   </li>
                 </ol>
               )}
+              {activeTx.status !== 'idle' && <span className='label'>{stage}</span>}
               {activeTx.status !== 'idle' && (
                 <TxSteps
                   status={activeTx.status}
@@ -459,12 +503,20 @@ export default function CreateOfferPage() {
                 <button
                   type='button'
                   className='button outline-light'
-                  onClick={() => activeTx.reset()}
+                  onClick={() => {
+                    activeTx.reset()
+                    setPostAfterAccount(false)
+                  }}
                 >
                   Try again
                 </button>
               )}
-              {blocking !== null && !running && !activeTx.isSuccess && (
+              {waitingForAccount && !running && (
+                <p className='hint'>
+                  The account is in; the offer posts by itself once it is indexed, in a few seconds.
+                </p>
+              )}
+              {blocking !== null && !running && !activeTx.isSuccess && !waitingForAccount && (
                 <p className='hint'>
                   A transaction of this wallet is waiting for a block; one at a time.
                 </p>
