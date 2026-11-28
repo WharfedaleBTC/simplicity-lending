@@ -4,9 +4,13 @@
 
 use std::fmt;
 
-use elements::secp256k1_zkp::{Message, PublicKey, SECP256K1, XOnlyPublicKey};
+use elements::confidential::{Asset, AssetBlindingFactor, Value as ConfValue, ValueBlindingFactor};
+use elements::secp256k1_zkp::{Generator, Message, PublicKey, SECP256K1, XOnlyPublicKey};
 use elements::sighash::{Prevouts, SighashCache};
-use elements::{Address, AssetId, SchnorrSighashType, Script, Transaction, TxOut, Txid, Witness};
+use elements::{
+    Address, AssetId, RangeProofMessage, SchnorrSighashType, Script, Transaction, TxOut,
+    TxOutSecrets, Txid, Witness,
+};
 
 use crate::keys::{KeyError, WalletKey as Key};
 use crate::network::Network;
@@ -251,14 +255,48 @@ impl Signer {
 }
 
 /// The coin with its opening: as is if explicit, unblinded with `key`'s blinding key if
-/// confidential (`None` if that fails: not ours).
+/// confidential (`None` if that fails: not ours). An explicit asset with a blinded value (how
+/// DAMP pays wallet outputs) is opened too.
 #[must_use]
 pub fn unblind(mut utxo: UTXO, key: &Key) -> Option<UTXO> {
     if utxo.txout.asset.is_explicit() && utxo.txout.value.is_explicit() {
         return Some(utxo);
     }
-    utxo.secrets = Some(utxo.txout.unblind(SECP256K1, key.blinding_key()).ok()?);
+    utxo.secrets = Some(match utxo.txout.asset {
+        Asset::Explicit(asset) => unblind_value_only(&utxo.txout, asset, key)?,
+        _ => utxo.txout.unblind(SECP256K1, key.blinding_key()).ok()?,
+    });
     Some(utxo)
+}
+
+/// Opens a blinded value whose asset is explicit: rewinds the range proof with the nonce shared
+/// with `key`'s blinding key and the asset's unblinded generator. The proof's message must name
+/// the same asset with a zero asset blinder (as DAMP writes it).
+fn unblind_value_only(txout: &TxOut, asset: AssetId, key: &Key) -> Option<TxOutSecrets> {
+    let ConfValue::Confidential(commitment) = txout.value else {
+        return None;
+    };
+    let shared_secret = txout.nonce.shared_secret(&key.blinding_key())?;
+    let rangeproof = txout.witness.rangeproof.as_ref()?;
+    let generator = Generator::new_unblinded(SECP256K1, asset.into_tag());
+    let (opening, _) = rangeproof
+        .rewind(
+            SECP256K1,
+            commitment,
+            shared_secret,
+            txout.script_pubkey.as_bytes(),
+            generator,
+        )
+        .ok()?;
+    // Checks the message names this asset with a zero asset blinder.
+    let message: [u8; 64] = opening.message.get(..64)?.try_into().ok()?;
+    RangeProofMessage::from_byte_array(SECP256K1, message, &txout.asset).ok()?;
+    Some(TxOutSecrets::new(
+        asset,
+        AssetBlindingFactor::zero(),
+        opening.value,
+        ValueBlindingFactor::from_slice(opening.blinding_factor.as_ref()).ok()?,
+    ))
 }
 
 /// Completes `ft`: adds fee-asset `coins` (largest first, skipping any already spent by `ft`)
@@ -437,4 +475,108 @@ fn key_path_signature(
         &key.tweaked_keypair(),
     );
     Ok(sig.serialize())
+}
+
+#[cfg(all(test, feature = "testing"))]
+mod tests {
+    use elements::confidential::{AssetBlindingFactor, SurjectionProof};
+    use elements::confidential::{Nonce, Value as ConfValue, ValueBlindingFactor};
+    use elements::secp256k1_zkp::{
+        Generator, PedersenCommitment, RangeProof, SECP256K1, SecretKey,
+    };
+    use elements::{RangeProofMessage, TxOut, TxOutWitness};
+
+    use crate::TestContext;
+
+    /// A coin as DAMP pays a wallet: explicit asset, value blinded to the wallet's blinding key,
+    /// the range proof's message naming the asset with a zero asset blinder.
+    fn value_only_output(
+        ctx: &TestContext,
+        signer: &super::Signer,
+        value: u64,
+    ) -> (TxOut, ValueBlindingFactor) {
+        let mut rng = rand::thread_rng();
+        let asset = ctx.get_network().policy_asset();
+        let generator = Generator::new_unblinded(SECP256K1, asset.into_tag());
+        let vbf = ValueBlindingFactor::new(&mut rng);
+        let (nonce, shared) = Nonce::with_ephemeral_sk(
+            SECP256K1,
+            SecretKey::new(&mut rng),
+            &signer.get_blinding_public_key(),
+        );
+        let commitment = PedersenCommitment::new(SECP256K1, value, vbf.into_inner(), generator);
+        let script = signer.key().script_pubkey();
+        let message = RangeProofMessage::new(asset, AssetBlindingFactor::zero());
+        let rangeproof = RangeProof::new(
+            SECP256K1,
+            1,
+            commitment,
+            value,
+            vbf.into_inner(),
+            &message.to_byte_array(),
+            script.as_bytes(),
+            shared,
+            0,
+            52,
+            generator,
+        )
+        .expect("range proof");
+        let output = TxOut {
+            asset: elements::confidential::Asset::Explicit(asset),
+            value: ConfValue::Confidential(commitment),
+            nonce,
+            script_pubkey: script,
+            witness: TxOutWitness {
+                surjection_proof: SurjectionProof::EMPTY,
+                rangeproof: elements::confidential::RangeProof::from_slice(&rangeproof.serialize())
+                    .expect("range proof bytes"),
+            },
+        };
+        (output, vbf)
+    }
+
+    #[test]
+    fn opens_and_spends_a_value_only_coin() {
+        let ctx = TestContext::new();
+        let signer = ctx.random_signer();
+        let (output, vbf) = value_only_output(&ctx, &signer, 50_000);
+        let outpoint = ctx.chain().fund_output(output);
+
+        // Counted: the wallet sees the coin, its value and opening.
+        let coins = signer.get_utxos().expect("coins");
+        let coin = coins
+            .iter()
+            .find(|c| c.outpoint == outpoint)
+            .expect("the value-only coin is listed");
+        let secrets = coin.secrets.expect("opened");
+        assert_eq!(secrets.value, 50_000);
+        assert_eq!(secrets.asset, ctx.get_network().policy_asset());
+        assert_eq!(secrets.value_bf, vbf);
+
+        // Spent: a payment funded by it alone passes consensus (the chain validates the blinding).
+        let to = ctx.random_signer().key().script_pubkey();
+        signer
+            .send(to, 20_000)
+            .expect("spend the value-only coin")
+            .wait()
+            .expect("in a block");
+        assert!(
+            signer
+                .get_utxos()
+                .expect("coins")
+                .iter()
+                .all(|c| c.outpoint != outpoint)
+        );
+    }
+
+    #[test]
+    fn skips_a_value_only_coin_for_another_key() {
+        let ctx = TestContext::new();
+        let owner = ctx.random_signer();
+        let other = ctx.create_signer(ctx.random_signer().key().clone());
+        let (mut output, _) = value_only_output(&ctx, &owner, 50_000);
+        output.script_pubkey = other.key().script_pubkey();
+        ctx.chain().fund_output(output);
+        assert!(other.get_utxos().expect("coins").is_empty());
+    }
 }

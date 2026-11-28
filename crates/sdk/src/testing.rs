@@ -65,6 +65,18 @@ impl TestChain {
 
     /// Creates an explicit coin out of thin air (the genesis allocation of a test).
     pub fn fund(&self, script: &Script, asset: AssetId, value: u64) -> OutPoint {
+        self.fund_output(TxOut {
+            asset: Asset::Explicit(asset),
+            value: ConfValue::Explicit(value),
+            nonce: Nonce::Null,
+            script_pubkey: script.clone(),
+            witness: TxOutWitness::empty(),
+        })
+    }
+
+    /// Creates any output out of thin air, confidential ones included: its spends are checked
+    /// by consensus as any other.
+    pub fn fund_output(&self, output: TxOut) -> OutPoint {
         let mut tag = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut tag);
         let tx = Transaction {
@@ -74,13 +86,7 @@ impl TestChain {
                 previous_output: OutPoint::new(Txid::from_byte_array(tag), 0),
                 ..Default::default()
             }],
-            output: vec![TxOut {
-                asset: Asset::Explicit(asset),
-                value: ConfValue::Explicit(value),
-                nonce: Nonce::Null,
-                script_pubkey: script.clone(),
-                witness: TxOutWitness::empty(),
-            }],
+            output: vec![output],
         };
         let outpoint = OutPoint::new(tx.txid(), 0);
         let mut s = self.state();
