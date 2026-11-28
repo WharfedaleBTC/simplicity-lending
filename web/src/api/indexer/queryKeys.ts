@@ -16,6 +16,9 @@ export const borrowerQueryKeys = {
     ['borrower', 'overview', normalizeHex(scriptPubkeyHex)] as const,
   offers: (scriptPubkeyHex: string, params: ListOffersParams = {}) =>
     ['borrower', 'offers', normalizeHex(scriptPubkeyHex), toQueryParams(params)] as const,
+  /** Every page at once (an array), apart from `offers`' single pages: never share a key. */
+  allOffers: (scriptPubkeyHex: string, params: ListOffersParams = {}) =>
+    ['borrower', 'all-offers', normalizeHex(scriptPubkeyHex), toQueryParams(params)] as const,
 } as const
 
 export const lenderQueryKeys = {
@@ -24,6 +27,9 @@ export const lenderQueryKeys = {
     ['lender', 'overview', normalizeHex(scriptPubkeyHex)] as const,
   offers: (scriptPubkeyHex: string, params: ListOffersParams = {}) =>
     ['lender', 'offers', normalizeHex(scriptPubkeyHex), toQueryParams(params)] as const,
+  /** Every page at once (an array), apart from `offers`' single pages: never share a key. */
+  allOffers: (scriptPubkeyHex: string, params: ListOffersParams = {}) =>
+    ['lender', 'all-offers', normalizeHex(scriptPubkeyHex), toQueryParams(params)] as const,
 } as const
 
 export const factoryQueryKeys = {

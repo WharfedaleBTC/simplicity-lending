@@ -99,7 +99,7 @@ export function useAllBorrowerOffers(
   options: ExtraQueryOptions<OfferShort[]> = {},
 ): UseQueryResult<OfferShort[]> {
   return useQuery({
-    queryKey: borrowerQueryKeys.offers(scriptPubkeyHex, params),
+    queryKey: borrowerQueryKeys.allOffers(scriptPubkeyHex, params),
     queryFn: ({ signal }) =>
       fetchAllOfferPages(
         pageParams => fetchBorrowerOffers(scriptPubkeyHex, pageParams, { signal }),
@@ -143,7 +143,7 @@ export function useAllLenderOffers(
   options: ExtraQueryOptions<OfferShort[]> = {},
 ): UseQueryResult<OfferShort[]> {
   return useQuery({
-    queryKey: lenderQueryKeys.offers(scriptPubkeyHex, params),
+    queryKey: lenderQueryKeys.allOffers(scriptPubkeyHex, params),
     queryFn: ({ signal }) =>
       fetchAllOfferPages(
         pageParams => fetchLenderOffers(scriptPubkeyHex, pageParams, { signal }),
