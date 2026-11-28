@@ -1,12 +1,4 @@
-import { toast } from '@heroui/react'
-
-import {
-  ApiAbortError,
-  ApiError,
-  ApiTimeoutError,
-  ApiValidationError,
-  BroadcastError,
-} from '@/api/errors'
+import { ApiError, ApiTimeoutError, ApiValidationError, BroadcastError } from '@/api/errors'
 import { NETWORK_CONFIG } from '@/constants/network-config'
 import { formatAmount, formatFeeReserve } from '@/utils/format'
 
@@ -34,31 +26,6 @@ function describeInsufficientAsset(message: string): string | null {
 }
 
 export class ErrorHandler {
-  static process(error: unknown, message?: string): void {
-    if (error instanceof ApiAbortError) return
-
-    const description =
-      message ?? (error instanceof Error ? ErrorHandler.getErrorMessage(error) : String(error))
-
-    toast.danger('Error', { description })
-
-    ErrorHandler.processWithoutFeedback(error)
-  }
-
-  static processWithRetry(error: unknown, onRetry: () => void, message?: string): void {
-    if (error instanceof ApiAbortError) return
-
-    const description =
-      message ?? (error instanceof Error ? ErrorHandler.getErrorMessage(error) : String(error))
-
-    toast.danger('Error', {
-      description,
-      actionProps: { children: 'Retry', onPress: onRetry },
-    })
-
-    ErrorHandler.processWithoutFeedback(error)
-  }
-
   static processWithoutFeedback(error: unknown): void {
     console.error(error)
   }

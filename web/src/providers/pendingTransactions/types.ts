@@ -47,11 +47,5 @@ export interface PendingTransactionsContextValue {
   addPendingTx: (input: AddPendingTxInput) => Promise<void>
   updatePendingTx: (txid: string, patch: Partial<PendingTxRecord>) => Promise<void>
   removePendingTx: (txid: string) => Promise<void>
-  /**
-   * Marks a txid as "surfaced": the user closed its transaction modal while still pending, so
-   * the bottom-center toast should pick up tracking it. Tracking continues even if a modal that
-   * stayed open the whole time never calls this.
-   */
-  addSurfaceToast: (txid: string) => void
   startCreatedOfferHighlight: (offerId: string) => void
 }

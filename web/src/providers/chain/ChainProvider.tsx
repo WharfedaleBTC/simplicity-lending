@@ -1,4 +1,3 @@
-import { Spinner } from '@heroui/react'
 import { useEffect, useState } from 'react'
 
 import { fetchBlockHashAtHeight } from '@/api/esplora/methods'
@@ -10,7 +9,7 @@ import { loadWasm } from '@/wharfedale/wasm'
 
 import { ChainContext } from './ChainContext'
 
-const MIN_LOADER_DURATION_MS = 600
+const MIN_LOADER_DURATION_MS = 0
 
 /** Loads the WebAssembly module, /config.json and the chain's genesis hash, then renders. */
 async function loadChain(): Promise<Network> {
@@ -55,14 +54,8 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
 
   if (!chainNetwork || !loaderDone) {
     return (
-      <main className='bg-surface text-foreground flex min-h-screen flex-col items-center justify-center gap-5'>
-        <Spinner size='lg' color='accent' />
-        <div className='flex flex-col items-center gap-1.5'>
-          <h1 className='text-2xl leading-none font-black tracking-tight uppercase'>Lending</h1>
-          <p className='text-muted text-xs font-medium tracking-[0.16em] uppercase'>
-            Connecting to Wharfedale…
-          </p>
-        </div>
+      <main className='loading-screen' aria-busy='true'>
+        Connecting to Wharfedale…
       </main>
     )
   }

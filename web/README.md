@@ -1,6 +1,6 @@
 # Simplicity Lending Web
 
-V2 frontend scaffold for the Simplicity Lending protocol.
+The lending app for Wharfedale: borrow USDT against WBTC, or lend it.
 
 ## Prerequisites
 
@@ -21,13 +21,16 @@ spot price every 30 seconds and falls back to the config's when that fails.
 
 ## Stack
 
-- Vite + React + TypeScript
-- Tailwind CSS v4 (token-ready theme scaffold)
-- HeroUI (`@heroui/react`)
-- React Router v7 (protected route stub)
-- React Query v5
-- Zod v3
+- Vite + React 19 + TypeScript, React Router v7, React Query v5, Zod
+- Plain CSS in the Wharfedale design language (`src/styles.css`, copied from the DAMP console,
+  which carries the Wharfedale web app's): no UI kit
+- `qrcode.react` for the receive address
 - ESLint + Prettier
+
+Pages: Overview (`/`), Market (`/market`), one page per offer with its action for your role
+(`/offers/:id`), Your borrowing (`/borrow`, `/borrow/new`), Your lending (`/lend`), Wallet
+(`/wallet`, `/wallet/new`, `/wallet/import`, `/wallet/backup`). Wallets are named and kept in
+this browser's localStorage, unencrypted: testing only.
 
 ## Install
 

@@ -1,82 +1,60 @@
-import { useEffect, useState } from 'react'
-import { createBrowserRouter, Outlet, RouterProvider, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  RouterProvider,
+  useLocation,
+} from 'react-router-dom'
 
-import AppLayout from '@/components/AppLayout'
-import { env } from '@/constants/env'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { RoutePath } from '@/constants/routes'
+import BorrowPage from '@/pages/Borrow'
+import CreateOfferPage from '@/pages/CreateOffer'
+import LendPage from '@/pages/Lend'
+import MarketPage from '@/pages/Market'
+import OfferPage from '@/pages/Offer'
+import OverviewPage from '@/pages/Overview'
+import { WalletBackupPage, WalletImportPage, WalletNewPage, WalletPage } from '@/pages/Wallet'
 import { AppProviders } from '@/providers/AppProviders'
 import { initAnalytics, trackPageView } from '@/utils/analytics'
 
-import ErrorBoundary from './components/ErrorBoundary'
-import BorrowPage from './pages/Borrow'
-import DashboardPage from './pages/Dashboard'
-import DesignSystemPage from './pages/DesignSystem'
-import LandingPage from './pages/Landing'
-import SupplyPage from './pages/Supply'
-
-function ProvidersLayout() {
+function Root() {
   const { pathname } = useLocation()
-  // Once true, stays true: keeps providers mounted so the wallet session is not lost
-  const [hasEnteredApp, setHasEnteredApp] = useState(() => isAppPath(pathname))
-
-  if (!hasEnteredApp && isAppPath(pathname)) setHasEnteredApp(true)
-
   useEffect(() => {
     initAnalytics()
   }, [])
-
   useEffect(() => {
     trackPageView(pathname)
+    window.scrollTo(0, 0)
   }, [pathname])
-
-  return hasEnteredApp ? (
+  return (
     <AppProviders>
       <Outlet />
     </AppProviders>
-  ) : (
-    <Outlet />
   )
-}
-
-function isAppPath(pathname: string) {
-  return pathname === RoutePath.Dashboard || pathname.startsWith(`${RoutePath.Dashboard}/`)
 }
 
 const router = createBrowserRouter([
   {
-    element: <ProvidersLayout />,
+    element: <Root />,
     errorElement: <ErrorBoundary />,
     children: [
-      {
-        path: RoutePath.Landing,
-        element: <LandingPage />,
-      },
-      {
-        path: RoutePath.Dashboard,
-        element: <AppLayout />,
-        children: [
-          {
-            index: true,
-            element: <DashboardPage />,
-          },
-          {
-            path: RoutePath.Borrow,
-            element: <BorrowPage />,
-          },
-          {
-            path: RoutePath.Supply,
-            element: <SupplyPage />,
-          },
-          ...(env.DEV
-            ? [
-                {
-                  path: RoutePath.DesignSystem,
-                  element: <DesignSystemPage />,
-                },
-              ]
-            : []),
-        ],
-      },
+      { path: RoutePath.Overview, element: <OverviewPage /> },
+      { path: RoutePath.Market, element: <MarketPage /> },
+      { path: RoutePath.Offer, element: <OfferPage /> },
+      { path: RoutePath.Borrow, element: <BorrowPage /> },
+      { path: RoutePath.CreateOffer, element: <CreateOfferPage /> },
+      { path: RoutePath.Lend, element: <LendPage /> },
+      { path: RoutePath.Wallet, element: <WalletPage /> },
+      { path: RoutePath.WalletNew, element: <WalletNewPage /> },
+      { path: RoutePath.WalletImport, element: <WalletImportPage /> },
+      { path: RoutePath.WalletBackup, element: <WalletBackupPage /> },
+      // The previous app's addresses.
+      { path: '/app', element: <Navigate to={RoutePath.Overview} replace /> },
+      { path: '/app/borrow', element: <Navigate to={RoutePath.Borrow} replace /> },
+      { path: '/app/supply', element: <Navigate to={RoutePath.Lend} replace /> },
+      { path: '*', element: <Navigate to={RoutePath.Overview} replace /> },
     ],
   },
 ])

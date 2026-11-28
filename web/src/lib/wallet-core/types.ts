@@ -1,6 +1,6 @@
 import type { AssetId, OutPoint } from '@/wharfedale/types'
 
-export type ConnectionStatus = 'disconnected' | 'locked' | 'ready'
+export type ConnectionStatus = 'disconnected' | 'locked' | 'ready' | 'error'
 
 export interface WalletCoin {
   outpoint(): OutPoint

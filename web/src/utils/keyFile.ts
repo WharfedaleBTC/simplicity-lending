@@ -1,12 +1,11 @@
-import { call, requireWasm } from '@/wharfedale/wasm'
+import { call } from '@/wharfedale/wasm'
 
 /**
- * Downloads a recovery phrase's key file: `{"secret": "<hex>"}`, the format the Wharfedale web
- * app (Wallet → Import), `wharfedale-wallet` and both SDKs read. It holds the derived key, not
- * the phrase. Named after the end of the wallet's address.
+ * Downloads a wallet's key file: `{"secret": "<hex>"}`, the format the Wharfedale web app
+ * (Wallet → Import), `wharfedale-wallet` and both SDKs read. It holds the key, not the phrase.
+ * Named after the end of the wallet's address.
  */
-export function downloadKeyFile(phrase: string): void {
-  const secret = requireWasm().secretFromMnemonic(phrase)
+export function downloadKeyFile(secret: string): void {
   const { address } = call<{ address: string }>(w => w.walletInfo(secret))
   const blob = new Blob([JSON.stringify({ secret }, null, 2)], { type: 'application/json' })
   const link = document.createElement('a')

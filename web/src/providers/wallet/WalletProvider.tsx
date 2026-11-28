@@ -1,43 +1,62 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { useSessionStorage } from '@/hooks/useSessionStorage'
 import { readCoinBalances } from '@/lib/wallet-core/wallet/sync'
+import { useWallets } from '@/lib/wallets'
 import { useChain } from '@/providers/chain/useChain'
 import type { TxSpec } from '@/wharfedale/tx'
 import type { Address, Transaction } from '@/wharfedale/types'
 import { type CompletedTransaction, SeedWallet } from '@/wharfedale/wallet'
 
-import {
-  type CachePolicy,
-  INITIAL_WALLET_STATE,
-  type SavedSession,
-  type WalletState,
-} from './types'
+import { INITIAL_WALLET_STATE, type WalletState } from './types'
 import { WalletContext } from './WalletContext'
 
-const SESSION_STORAGE_KEY = 'wharfedale_lending_wallet'
 const BALANCE_POLL_INTERVAL_MS = 15_000
 // The node indexes a transaction within a block (about a second when there's work).
 const POST_BROADCAST_SYNC_MS = [1_500, 4_000]
 
+function openWallet(secret: string | null): { wallet: SeedWallet | null; state: WalletState } {
+  if (!secret) return { wallet: null, state: INITIAL_WALLET_STATE }
+  try {
+    const wallet = SeedWallet.fromSecret(secret)
+    return {
+      wallet,
+      state: {
+        ...INITIAL_WALLET_STATE,
+        connectionStatus: 'ready',
+        connectorId: wallet.info.xonlyPublicKey,
+        signerType: 'seed',
+        receiveAddress: wallet.info.address,
+        scriptPubkey: wallet.info.scriptPubkey,
+        syncing: true,
+      },
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err)
+    return {
+      wallet: null,
+      state: { ...INITIAL_WALLET_STATE, connectionStatus: 'error', error, isError: true },
+    }
+  }
+}
+
+/** The active wallet of this browser's list (lib/wallets): opened, synced and polled. */
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { chainNetwork } = useChain()
+  const { active } = useWallets()
   const walletRef = useRef<SeedWallet | null>(null)
   const syncInFlightRef = useRef<Promise<void> | null>(null)
-
   const [state, setState] = useState<WalletState>(INITIAL_WALLET_STATE)
-  const [savedSession, setSavedSession] = useSessionStorage<SavedSession>(SESSION_STORAGE_KEY)
 
   const requireWallet = useCallback((): SeedWallet => {
     const wallet = walletRef.current
-    if (!wallet) throw new Error('Wallet is not connected')
+    if (!wallet) throw new Error('No wallet is open')
     return wallet
   }, [])
 
   const sync = useCallback((): Promise<void> => {
     if (syncInFlightRef.current) return syncInFlightRef.current
     const wallet = walletRef.current
-    if (!wallet) return Promise.reject(new Error('Wallet is not connected'))
+    if (!wallet) return Promise.reject(new Error('No wallet is open'))
     setState(s => ({ ...s, syncing: true, error: null }))
     const promise = wallet
       .coins()
@@ -50,6 +69,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           balances: total,
           confirmedBalances: confirmed,
           pendingBalances: pending,
+          error: null,
+          isError: false,
         }))
       })
       .catch(err => {
@@ -64,53 +85,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return promise
   }, [])
 
-  const connect = useCallback(
-    async (mnemonic: string) => {
-      setState(s => ({ ...s, error: null, isError: false }))
-      let wallet: SeedWallet
-      try {
-        wallet = SeedWallet.fromMnemonic(mnemonic)
-      } catch (err) {
-        const error = err instanceof Error ? err.message : String(err)
-        setState(s => ({ ...s, error, isError: true }))
-        throw err
-      }
-      walletRef.current = wallet
-      setSavedSession({ mnemonic })
-      setState(s => ({
-        ...s,
-        connectionStatus: 'ready',
-        connectorId: wallet.info.xonlyPublicKey,
-        signerType: 'seed',
-        receiveAddress: wallet.info.address,
-        scriptPubkey: wallet.info.scriptPubkey,
-      }))
-      await sync().catch(console.warn)
-    },
-    [setSavedSession, sync],
-  )
-
-  const disconnect = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (_options: { cachePolicy?: CachePolicy } = {}) => {
-      walletRef.current = null
-      syncInFlightRef.current = null
-      setSavedSession(null)
-      setState(INITIAL_WALLET_STATE)
-    },
-    [setSavedSession],
-  )
-
-  // Reconnect within the tab's session.
-  const resumedRef = useRef(false)
+  // Open the active wallet whenever it changes: its state resets as the render sees the new
+  // secret, and the effect points the ref at it and syncs.
+  const secret = active?.secret ?? null
+  const opened = useMemo(() => openWallet(secret), [secret])
+  const [openedSecret, setOpenedSecret] = useState<string | null>(null)
+  if (secret !== openedSecret) {
+    setOpenedSecret(secret)
+    setState(opened.state)
+  }
   useEffect(() => {
-    if (resumedRef.current || !savedSession || state.connectionStatus !== 'disconnected') return
-    resumedRef.current = true
-    setState(s => ({ ...s, reconnecting: true }))
-    connect(savedSession.mnemonic)
-      .catch(() => disconnect())
-      .finally(() => setState(s => ({ ...s, reconnecting: false })))
-  }, [savedSession, state.connectionStatus, connect, disconnect])
+    walletRef.current = opened.wallet
+    syncInFlightRef.current = null
+    if (opened.wallet) sync().catch(console.warn)
+  }, [opened, sync])
 
   useEffect(() => {
     if (state.connectionStatus !== 'ready') return
@@ -159,16 +147,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [requireWallet],
   )
 
+  const isReady = state.connectionStatus === 'ready'
   return (
     <WalletContext.Provider
       value={{
         ...state,
-        isReady: state.connectionStatus === 'ready',
-        recoveryPhrase:
-          state.connectionStatus === 'ready' ? (savedSession?.mnemonic ?? null) : null,
-        connect,
-        cancelPendingRequest: async () => {},
-        disconnect,
+        isReady,
+        walletName: active?.name ?? null,
+        recoveryPhrase: isReady ? (active?.phrase ?? null) : null,
         syncWallet: sync,
         applyBroadcastTransaction,
         completeTransaction,

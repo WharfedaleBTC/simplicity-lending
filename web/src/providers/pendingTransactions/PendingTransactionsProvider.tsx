@@ -13,7 +13,6 @@ import { invalidateAllIndexerQueries } from '@/api/indexer/invalidateIndexerQuer
 import { fetchBorrowerOffers, fetchFactoriesByScript, fetchOffer } from '@/api/indexer/methods'
 import { borrowerQueryKeys, factoryQueryKeys, offersQueryKeys } from '@/api/indexer/queryKeys'
 import { useLatestRef } from '@/hooks/useLatestRef'
-import { usePendingTxToasts } from '@/hooks/usePendingTxToasts'
 import {
   fetchTxStatusSnapshot,
   TX_STATUS_POLL_MS,
@@ -224,7 +223,6 @@ function PendingTransactionsStore({
   const queryClient = useQueryClient()
   const [pendingTxs, setPendingTxs] = useState<PendingTxRecord[]>([])
   const [isLoading, setIsLoading] = useState(Boolean(scriptPubkey))
-  const [surfacedTxids, setSurfacedTxids] = useState<Set<string>>(new Set())
   const [newlyCreatedOfferIds, setNewlyCreatedOfferIds] = useState<Set<string>>(new Set())
   const [highlightedCreatedOfferIds, setHighlightedCreatedOfferIds] = useState<Set<string>>(
     new Set(),
@@ -362,10 +360,6 @@ function PendingTransactionsStore({
     createdOfferHighlightTimersRef.current.set(offerId, timer)
   }, [])
 
-  const addSurfaceToast = useCallback((txid: string) => {
-    setSurfacedTxids(prev => (prev.has(txid) ? prev : new Set(prev).add(txid)))
-  }, [])
-
   // If indexer-based cleanup never catches up, fall back to trusting on-chain finality.
   useEffect(() => {
     const id = setInterval(() => {
@@ -440,7 +434,6 @@ function PendingTransactionsStore({
     onRemove: removeByTxid,
     onChecked: markChecked,
   })
-  usePendingTxToasts(pendingTxs, surfacedTxids)
 
   const contextValue = useMemo(
     () => ({
@@ -451,7 +444,6 @@ function PendingTransactionsStore({
       addPendingTx,
       updatePendingTx,
       removePendingTx,
-      addSurfaceToast,
       startCreatedOfferHighlight,
     }),
     [
@@ -462,7 +454,6 @@ function PendingTransactionsStore({
       addPendingTx,
       updatePendingTx,
       removePendingTx,
-      addSurfaceToast,
       startCreatedOfferHighlight,
     ],
   )

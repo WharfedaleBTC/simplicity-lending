@@ -70,9 +70,9 @@ Its ticker and decimals come from the chain. `PROTOCOL_FEE_KEEPER_ASSET` (option
 asset whose holder collects protocol fees; it defaults to the principal asset, as upstream. The
 settings apply on the next `make stop` and `make run`.
 
-Open http://localhost:8090 and connect with a recovery phrase (the Wharfedale web app's, or a
-new one). Get WBTC from the faucet at http://localhost:8080/faucet and send USDT to lenders from
-the wallet that issued it.
+Open http://localhost:8090 and create a wallet, or import the Wharfedale web app's (recovery
+phrase or key file); wallets stay in the browser. Get WBTC from the faucet at
+http://localhost:8080/faucet and send USDT to lenders from the wallet that issued it.
 
 `make stop` keeps the indexer's database; `make clear` deletes it.
 

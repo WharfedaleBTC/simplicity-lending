@@ -64,6 +64,11 @@ export class SeedWallet {
     return new SeedWallet(requireWasm().secretFromMnemonic(phrase))
   }
 
+  /** From the 32-byte key itself (64 hex), as a `{"secret"}` key file holds it. */
+  static fromSecret(secret: string): SeedWallet {
+    return new SeedWallet(secret.trim().toLowerCase())
+  }
+
   receiveAddress(): Address {
     return Address.parse(this.info.address)
   }

@@ -8,7 +8,7 @@ import type { StartTxProgress, TransactionSteps } from './types'
 
 // Software signers (seed) sign synchronously, so steps can otherwise flash by
 // in a few ms. Hold each step on screen at least this long so the stepper reads.
-const MIN_STAGE_DURATION_MS = 2000
+const MIN_STAGE_DURATION_MS = 700
 
 export function TxProgressProvider({ children }: { children: React.ReactNode }) {
   const [steps, setSteps] = useState<TransactionSteps>([])
